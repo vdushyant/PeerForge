@@ -45,4 +45,10 @@ public class User extends BaseEntity {
     )
     @Builder.Default
     private Set<Role> roles = new HashSet<>();
+
+    @OneToOne(
+            mappedBy = "user",
+            fetch = FetchType.LAZY
+    )
+    private UserProfile profile;
 }
