@@ -2,6 +2,7 @@ package com.peerforge.user.entity;
 
 import com.peerforge.common.entity.BaseEntity;
 import com.peerforge.role.entity.Role;
+import com.peerforge.skill.entity.Skill;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -51,4 +52,12 @@ public class User extends BaseEntity {
             fetch = FetchType.LAZY
     )
     private UserProfile profile;
+
+    @ManyToMany
+    @JoinTable(
+            name = "user_skills",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "skill_id")
+    )
+    private Set<Skill> skills = new HashSet<>();
 }
