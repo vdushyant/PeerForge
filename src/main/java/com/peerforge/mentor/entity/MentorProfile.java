@@ -6,6 +6,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "mentor_profiles")
@@ -58,4 +60,13 @@ public class MentorProfile extends BaseEntity {
             unique = true
     )
     private User user;
+
+    @OneToMany(
+            mappedBy = "mentorProfile",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private Set<MentorAvailability>
+            availabilities
+            = new HashSet<>();
 }

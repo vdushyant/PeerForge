@@ -2,12 +2,16 @@ package com.peerforge.mentor.service.impl;
 
 import com.peerforge.common.exception.DuplicateResourceException;
 import com.peerforge.common.exception.ResourceNotFoundException;
+import com.peerforge.mentor.dto.request.CreateAvailabilityRequest;
 import com.peerforge.mentor.dto.request.MentorApplicationRequest;
+import com.peerforge.mentor.dto.response.AvailabilityResponse;
 import com.peerforge.mentor.dto.response.MentorCardResponse;
 import com.peerforge.mentor.dto.response.MentorProfileResponse;
 import com.peerforge.mentor.entity.ApprovalStatus;
+import com.peerforge.mentor.entity.MentorAvailability;
 import com.peerforge.mentor.entity.MentorProfile;
 import com.peerforge.mentor.mapper.MentorProfileMapper;
+import com.peerforge.mentor.repository.MentorAvailabilityRepository;
 import com.peerforge.mentor.repository.MentorProfileRepository;
 import com.peerforge.mentor.service.MentorService;
 import com.peerforge.role.entity.Role;
@@ -39,6 +43,9 @@ public class MentorServiceImpl
             mentorProfileMapper;
 
     private final RoleRepository roleRepository;
+
+    private final MentorAvailabilityRepository
+            mentorAvailabilityRepository;
 
     @Override
     public MentorProfileResponse applyForMentorship(
@@ -191,6 +198,59 @@ public class MentorServiceImpl
         return mentorProfileMapper
                 .toResponse(updatedMentor);
 
+    }
+
+    @Override
+    public AvailabilityResponse addAvailability(
+            CreateAvailabilityRequest request,
+            String email
+    ) {
+
+        User user = userRepository
+                .findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found"
+                        ));
+
+
+        MentorProfile mentor =
+                mentorProfileRepository
+                        .findByUserId(
+                                user.getId()
+                        ).orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Mentor not found"
+                                ));
+
+        if (!request.startTime().isBefore(request.endTime())) {
+            throw new IllegalArgumentException("Start time must be before end time");
+        }
+
+
+        List<MentorAvailability> existingSlots = mentorAvailabilityRepository.findByMentorProfileId(mentor.getId());
+        for (MentorAvailability slot : existingSlots) {
+            if (slot.getDayOfWeek() != request.dayOfWeek()) {
+                continue;
+            }
+            boolean noOverlap = slot.getEndTime().compareTo(request.startTime()) <= 0|| request.endTime().compareTo(slot.getStartTime()) <= 0;
+            if (!noOverlap) {
+                throw new DuplicateResourceException(
+                        "Availability overlaps with existing slot"
+                );
+            }
+        }
+
+        MentorAvailability availability =
+                mentorProfileMapper
+                        .toEntity(
+                                request
+                        );
+
+
+        availability.setMentorProfile(mentor);
+        MentorAvailability saved = mentorAvailabilityRepository.save(availability);
+        return mentorProfileMapper.toResponse(saved);
     }
 
 }
