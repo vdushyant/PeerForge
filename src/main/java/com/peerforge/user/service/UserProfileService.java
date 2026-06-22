@@ -9,4 +9,13 @@ public interface UserProfileService {
     UserProfileResponse createProfile(CreateProfileRequest request, String email);
     UserProfileResponse getMyProfile(String email);
     UserProfileResponse updateProfile(UpdateProfileRequest request, String email);
+    void addSkillToCurrentUser(
+            Long skillId,
+            String email
+    );
+
+    void removeSkillFromCurrentUser(
+            Long skillId,
+            String email
+    );
 }

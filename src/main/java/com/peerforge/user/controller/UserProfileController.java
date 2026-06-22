@@ -52,4 +52,30 @@ public class UserProfileController {
                 userDetails.getUsername()
         );
     }
+
+    @PostMapping("/skills/{skillId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void addSkill(
+            @PathVariable Long skillId,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+
+        userProfileService.addSkillToCurrentUser(
+                skillId,
+                userDetails.getUsername()
+        );
+    }
+
+    @DeleteMapping("/skills/{skillId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeSkill(
+            @PathVariable Long skillId,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+
+        userProfileService.removeSkillFromCurrentUser(
+                skillId,
+                userDetails.getUsername()
+        );
+    }
 }

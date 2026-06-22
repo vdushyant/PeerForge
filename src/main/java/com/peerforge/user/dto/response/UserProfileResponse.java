@@ -1,6 +1,7 @@
 package com.peerforge.user.dto.response;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public record UserProfileResponse(
 
@@ -14,7 +15,8 @@ public record UserProfileResponse(
 
         String githubUrl,
 
-        String linkedinUrl
-) {
+        String linkedinUrl,
 
+        List<String> skills
+) {
 }
