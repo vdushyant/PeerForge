@@ -17,6 +17,32 @@ public interface SessionMapper {
             source = "client.id"
     )
 
+    @Mapping(
+            target = "mentorName",
+            expression =
+                    "java(session.getMentor().getUser().getFirstName() + " +
+                            "\" \" + " +
+                            "session.getMentor().getUser().getLastName())"
+    )
+
+    @Mapping(
+            target = "clientName",
+            expression =
+                    "java(session.getClient().getFirstName() + " +
+                            "\" \" + " +
+                            "session.getClient().getLastName())"
+    )
+
+    @Mapping(
+            target = "mentorEmail",
+            source = "mentor.user.email"
+    )
+
+    @Mapping(
+            target = "clientEmail",
+            source = "client.email"
+    )
+
     SessionResponse toResponse(
             Session session
     );

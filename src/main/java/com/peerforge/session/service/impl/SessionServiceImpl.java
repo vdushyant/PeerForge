@@ -6,6 +6,7 @@ import com.peerforge.mentor.entity.MentorAvailability;
 import com.peerforge.mentor.entity.MentorProfile;
 import com.peerforge.mentor.repository.MentorAvailabilityRepository;
 import com.peerforge.mentor.repository.MentorProfileRepository;
+import com.peerforge.role.entity.Role;
 import com.peerforge.session.dto.request.BookSessionRequest;
 import com.peerforge.session.dto.response.SessionResponse;
 import com.peerforge.session.entity.Session;
@@ -16,6 +17,7 @@ import com.peerforge.session.service.SessionService;
 import com.peerforge.user.entity.User;
 import com.peerforge.user.repository.UserRepository;
 import lombok.*;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,9 +39,7 @@ public class SessionServiceImpl implements SessionService {
             BookSessionRequest request,
             String email
     ) {
-        User client = userRepository.findByEmail(email).orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "User not found"));
+        User client  = getCurrentUser(email);
 
         MentorProfile mentor = mentorProfileRepository
                 .findById(request.mentorId())
@@ -124,7 +124,197 @@ public class SessionServiceImpl implements SessionService {
 
         Session saved = sessionRepository.save(session);
         return sessionMapper.toResponse(saved);
+    }
 
+    @Override
+
+    @Transactional(readOnly = true)
+    public List<SessionResponse> getMySessions(String email) {
+        User client = userRepository
+                        .findByEmail(email)
+                        .orElseThrow(() -> new ResourceNotFoundException("User not found")
+                        );
+        return sessionRepository.findByClientIdOrderByStartDateTimeAsc(client.getId())
+                        .stream()
+                        .map(sessionMapper::toResponse)
+                        .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SessionResponse> getMentorSessions(Long mentorId) {
+        mentorProfileRepository.findById(mentorId)
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Mentor not found")
+                );
+
+        return sessionRepository.findByMentorIdOrderByStartDateTimeAsc(mentorId)
+                        .stream()
+                        .map(sessionMapper::toResponse)
+                        .toList();
+    }
+
+    @Override
+    public SessionResponse confirmSession(Long sessionId, String email)
+    {
+
+        User currentUser = getCurrentUser(email);
+        Session session = getSession(sessionId);
+        validateMentorOrAdmin(session,currentUser);
+        validateConfirmTransition(session);
+
+        session.setStatus(SessionStatus.CONFIRMED);
+
+        Session saved = sessionRepository.save(session);
+        return sessionMapper.toResponse(saved);
+    }
+
+    @Override
+    public SessionResponse completeSession(
+            Long sessionId,
+            String email
+    ) {
+        User currentUser = getCurrentUser(email);
+        Session session = getSession(sessionId);
+        validateMentorOrAdmin(session,currentUser);
+        validateCompleteTransition(session);
+
+        session.setStatus(SessionStatus.COMPLETED);
+        Session saved = sessionRepository.save(session);
+        return sessionMapper.toResponse(saved);
+    }
+
+    @Override
+    public SessionResponse cancelSession(
+            Long sessionId,
+            String email
+    ) {
+        User currentUser = getCurrentUser(email);
+        Session session = getSession(sessionId);
+        validateSessionAccess(session,currentUser);
+        validateCancelTransition(session);
+
+        session.setStatus(SessionStatus.CANCELLED);
+        Session saved = sessionRepository.save(session);
+        return sessionMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SessionResponse getSessionById(Long sessionId, String email) {
+        User currentUser = userRepository
+                .findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found"
+                        ));
+
+
+        Session session = sessionRepository
+                .findById(sessionId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Session not found"
+                        ));
+
+
+        boolean isMentor = session.getMentor()
+                .getUser()
+                .getId()
+                .equals(currentUser.getId());
+
+
+        boolean isClient = session.getClient()
+                .getId()
+                .equals(currentUser.getId());
+
+
+        if (!isAdmin(currentUser) && !isMentor && !isClient) {
+            throw new AccessDeniedException(
+                    "Not allowed to view session"
+            );
+        }
+        return sessionMapper.toResponse(session);
+    }
+
+    //Helper Methods
+    private boolean isAdmin(User user) {
+        return user.getRoles()
+                .stream()
+                .map(Role::getName)
+                .anyMatch(
+                        "ADMIN"::equals
+                );
+    }
+    private User getCurrentUser(String email) {
+        return userRepository
+                .findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found"
+                        ));
+    }
+
+    private Session getSession(Long sessionId) {
+        return sessionRepository
+                .findById(sessionId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Session not found"
+                        ));
+    }
+
+    private void validateMentorOrAdmin(Session session, User currentUser) {
+        boolean isMentor = session.getMentor()
+                        .getUser()
+                        .getId()
+                        .equals(currentUser.getId());
+        if (!isAdmin(currentUser) && !isMentor) {
+            throw new AccessDeniedException(
+                    "Access denied"
+            );
+        }
+    }
+
+    private void validateSessionAccess(Session session, User currentUser) {
+        boolean isMentor = session.getMentor()
+                        .getUser()
+                        .getId()
+                        .equals(currentUser.getId());
+
+        boolean isClient = session.getClient()
+                        .getId()
+                        .equals(currentUser.getId());
+
+        if (!isAdmin(currentUser) && !isMentor && !isClient) {
+            throw new AccessDeniedException("Access denied");
+        }
+    }
+
+    private void validateConfirmTransition(Session session) {
+        if (session.getStatus() != SessionStatus.PENDING) {
+            throw new IllegalArgumentException(
+                    "Only pending sessions can be confirmed"
+            );
+        }
+    }
+
+    private void validateCompleteTransition(Session session) {
+        if (session.getStatus() != SessionStatus.CONFIRMED) {
+            throw new IllegalArgumentException(
+                    "Only confirmed sessions can be completed"
+            );
+        }
+    }
+
+    private void validateCancelTransition(Session session) {
+        if (session.getStatus() == SessionStatus.COMPLETED) {
+            throw new IllegalArgumentException("Completed session cannot be cancelled");
+        }
+
+        if (session.getStatus() == SessionStatus.CANCELLED) {
+            throw new IllegalArgumentException("Session already cancelled");
+        }
     }
 
 }

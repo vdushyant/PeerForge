@@ -12,4 +12,6 @@ public interface SessionRepository
 
     List<Session> findByMentorId(Long mentorId);
     List<Session> findByClientId(Long clientId);
+    List<Session> findByClientIdOrderByStartDateTimeAsc(Long clientId);
+    List<Session> findByMentorIdOrderByStartDateTimeAsc(Long mentorId);
 }

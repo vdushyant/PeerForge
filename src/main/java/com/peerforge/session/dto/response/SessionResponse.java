@@ -10,7 +10,15 @@ public record SessionResponse(
 
         Long mentorId,
 
+        String mentorName,
+
+        String mentorEmail,
+
         Long clientId,
+
+        String clientName,
+
+        String clientEmail,
 
         LocalDateTime startDateTime,
 
