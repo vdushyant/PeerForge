@@ -3,6 +3,7 @@ package com.peerforge.user.entity;
 import com.peerforge.common.entity.BaseEntity;
 import com.peerforge.mentor.entity.MentorProfile;
 import com.peerforge.role.entity.Role;
+import com.peerforge.session.entity.Session;
 import com.peerforge.skill.entity.Skill;
 import jakarta.persistence.*;
 import lombok.*;
@@ -67,4 +68,9 @@ public class User extends BaseEntity {
             fetch = FetchType.LAZY
     )
     private MentorProfile mentorProfile;
+
+    @OneToMany(
+            mappedBy = "client"
+    )
+    private Set<Session> bookedSessions = new HashSet<>();
 }

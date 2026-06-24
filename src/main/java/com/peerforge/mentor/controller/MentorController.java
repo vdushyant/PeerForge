@@ -47,11 +47,8 @@ public class MentorController {
     }
 
     @PostMapping("/availability")
-
     @ResponseStatus(HttpStatus.CREATED)
-
     public AvailabilityResponse
-
     addAvailability(
             @Valid
             @RequestBody

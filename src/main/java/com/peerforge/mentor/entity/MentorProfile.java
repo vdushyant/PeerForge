@@ -1,6 +1,7 @@
 package com.peerforge.mentor.entity;
 
 import com.peerforge.common.entity.BaseEntity;
+import com.peerforge.session.entity.Session;
 import com.peerforge.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -69,4 +70,10 @@ public class MentorProfile extends BaseEntity {
     private Set<MentorAvailability>
             availabilities
             = new HashSet<>();
+
+    @OneToMany(
+            mappedBy = "mentor"
+    )
+
+    private Set<Session> sessions = new HashSet<>();
 }
