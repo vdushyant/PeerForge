@@ -27,7 +27,8 @@ public class GlobalExceptionHandler {
                 .body(response);
     }
 
-    @ExceptionHandler(ResourceNotFoundException.class) public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex, HttpServletRequest request) {
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex, HttpServletRequest request) {
         ErrorResponse response =
                 new ErrorResponse(
                         LocalDateTime.now(),
@@ -43,14 +44,12 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class) public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex, HttpServletRequest request) {
-        String message =
-                ex.getBindingResult()
+        String message = ex.getBindingResult()
                         .getFieldErrors()
                         .getFirst()
                         .getDefaultMessage();
 
-        ErrorResponse response =
-                new ErrorResponse(
+        ErrorResponse response = new ErrorResponse(
                         LocalDateTime.now(),
                         HttpStatus.BAD_REQUEST.value(),
                         HttpStatus.BAD_REQUEST.getReasonPhrase(),
@@ -63,9 +62,9 @@ public class GlobalExceptionHandler {
                 .body(response);
     }
 
-    @ExceptionHandler(Exception.class) public ResponseEntity<ErrorResponse> handleException(Exception ex, HttpServletRequest request) {
-        ErrorResponse response =
-                new ErrorResponse(
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleException(Exception ex, HttpServletRequest request) {
+        ErrorResponse response = new ErrorResponse(
                         LocalDateTime.now(),
                         HttpStatus.INTERNAL_SERVER_ERROR.value(),
                         HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(),
@@ -77,5 +76,32 @@ public class GlobalExceptionHandler {
                 .internalServerError()
                 .body(response);
     }
+
+    @ExceptionHandler({
+            InvalidSessionStateException.class,
+            InvalidPaymentStateException.class,
+            PaymentAlreadyExistsException.class,
+            BookingConflictException.class,
+            MentorUnavailableException.class
+    })
+    public ResponseEntity<ErrorResponse> handleBusinessException(
+            RuntimeException ex,
+            HttpServletRequest request
+    ) {
+
+        ErrorResponse error =
+                new ErrorResponse(
+                        LocalDateTime.now(),
+                        HttpStatus.BAD_REQUEST.value(),
+                        HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                        ex.getMessage(),
+                        request.getRequestURI()
+                );
+
+        return ResponseEntity
+                .badRequest()
+                .body(error);
+    }
+
 
 }

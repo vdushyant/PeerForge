@@ -2,6 +2,7 @@ package com.peerforge.session.entity;
 
 import com.peerforge.common.entity.BaseEntity;
 import com.peerforge.mentor.entity.MentorProfile;
+import com.peerforge.payment.entity.Payment;
 import com.peerforge.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -49,5 +50,11 @@ public class Session extends BaseEntity {
 
     @Column(name = "meeting_link", length = 500)
     private String meetingLink;
+
+    @OneToOne(
+            mappedBy = "session",
+            fetch = FetchType.LAZY
+    )
+    private Payment payment;
 
 }

@@ -1,6 +1,6 @@
 package com.peerforge.session.service.impl;
 
-import com.peerforge.common.exception.ResourceNotFoundException;
+import com.peerforge.common.exception.*;
 import com.peerforge.mentor.entity.ApprovalStatus;
 import com.peerforge.mentor.entity.MentorAvailability;
 import com.peerforge.mentor.entity.MentorProfile;
@@ -49,13 +49,13 @@ public class SessionServiceImpl implements SessionService {
 
         if (mentor.getApprovalStatus()
                 != ApprovalStatus.APPROVED) {
-            throw new IllegalArgumentException(
+            throw new MentorUnavailableException(
                     "Mentor is not approved"
             );
         }
 
         if (!request.startDateTime().isBefore(request.endDateTime())) {
-            throw new IllegalArgumentException(
+            throw new BookingConflictException(
                     "Start time must be before end time"
             );
         }
@@ -85,7 +85,7 @@ public class SessionServiceImpl implements SessionService {
                 );
 
         if (!available) {
-            throw new IllegalArgumentException("Mentor unavailable");
+            throw new MentorUnavailableException("Mentor unavailable");
         }
 
         List<Session> mentorSessions = sessionRepository.findByMentorId(mentor.getId());
@@ -94,8 +94,8 @@ public class SessionServiceImpl implements SessionService {
                             .compareTo(request.startDateTime()) <= 0 || request.endDateTime()
                             .compareTo(session.getStartDateTime()) <= 0;
 
-            if (!noOverlap) {throw new IllegalArgumentException(
-                        "Mentor already booked");
+            if (!noOverlap) {
+                throw new MentorUnavailableException("Mentor already booked");
             }
         }
 
@@ -108,9 +108,7 @@ public class SessionServiceImpl implements SessionService {
                             .compareTo(request.startDateTime()) <= 0 || request.endDateTime()
                             .compareTo(session.getStartDateTime()) <= 0;
             if (!noOverlap) {
-                throw new IllegalArgumentException(
-                        "Client already booked"
-                );
+                throw new BookingConflictException("Client already booked");
             }
         }
 
@@ -160,7 +158,7 @@ public class SessionServiceImpl implements SessionService {
 
         User currentUser = getCurrentUser(email);
         Session session = getSession(sessionId);
-        validateMentorOrAdmin(session,currentUser);
+        validateMentorOrAdminAccess(session,currentUser);
         validateConfirmTransition(session);
 
         session.setStatus(SessionStatus.CONFIRMED);
@@ -176,7 +174,7 @@ public class SessionServiceImpl implements SessionService {
     ) {
         User currentUser = getCurrentUser(email);
         Session session = getSession(sessionId);
-        validateMentorOrAdmin(session,currentUser);
+        validateMentorOrAdminAccess(session,currentUser);
         validateCompleteTransition(session);
 
         session.setStatus(SessionStatus.COMPLETED);
@@ -202,42 +200,14 @@ public class SessionServiceImpl implements SessionService {
     @Override
     @Transactional(readOnly = true)
     public SessionResponse getSessionById(Long sessionId, String email) {
-        User currentUser = userRepository
-                .findByEmail(email)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "User not found"
-                        ));
+        User currentUser = getCurrentUser(email);
+        Session session = getSession(sessionId);
+        validateSessionAccess(session,currentUser);
 
-
-        Session session = sessionRepository
-                .findById(sessionId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Session not found"
-                        ));
-
-
-        boolean isMentor = session.getMentor()
-                .getUser()
-                .getId()
-                .equals(currentUser.getId());
-
-
-        boolean isClient = session.getClient()
-                .getId()
-                .equals(currentUser.getId());
-
-
-        if (!isAdmin(currentUser) && !isMentor && !isClient) {
-            throw new AccessDeniedException(
-                    "Not allowed to view session"
-            );
-        }
         return sessionMapper.toResponse(session);
     }
 
-    //Helper Methods
+    // Lookup Helpers
     private boolean isAdmin(User user) {
         return user.getRoles()
                 .stream()
@@ -255,6 +225,7 @@ public class SessionServiceImpl implements SessionService {
                         ));
     }
 
+    // Authorization Helpers
     private Session getSession(Long sessionId) {
         return sessionRepository
                 .findById(sessionId)
@@ -264,7 +235,7 @@ public class SessionServiceImpl implements SessionService {
                         ));
     }
 
-    private void validateMentorOrAdmin(Session session, User currentUser) {
+    private void validateMentorOrAdminAccess(Session session, User currentUser) {
         boolean isMentor = session.getMentor()
                         .getUser()
                         .getId()
@@ -291,9 +262,10 @@ public class SessionServiceImpl implements SessionService {
         }
     }
 
+    // State Validation Helpers
     private void validateConfirmTransition(Session session) {
         if (session.getStatus() != SessionStatus.PENDING) {
-            throw new IllegalArgumentException(
+            throw new InvalidSessionStateException(
                     "Only pending sessions can be confirmed"
             );
         }
@@ -301,7 +273,7 @@ public class SessionServiceImpl implements SessionService {
 
     private void validateCompleteTransition(Session session) {
         if (session.getStatus() != SessionStatus.CONFIRMED) {
-            throw new IllegalArgumentException(
+            throw new InvalidSessionStateException(
                     "Only confirmed sessions can be completed"
             );
         }
@@ -309,11 +281,11 @@ public class SessionServiceImpl implements SessionService {
 
     private void validateCancelTransition(Session session) {
         if (session.getStatus() == SessionStatus.COMPLETED) {
-            throw new IllegalArgumentException("Completed session cannot be cancelled");
+            throw new InvalidSessionStateException("Completed session cannot be cancelled");
         }
 
         if (session.getStatus() == SessionStatus.CANCELLED) {
-            throw new IllegalArgumentException("Session already cancelled");
+            throw new InvalidSessionStateException("Session already cancelled");
         }
     }
 
