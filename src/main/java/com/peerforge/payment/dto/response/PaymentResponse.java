@@ -16,7 +16,9 @@ public record PaymentResponse(
 
         String providerOrderId,
 
-        String providerPaymentId
+        String providerPaymentId,
+
+        String razorpayKey
 
 ) {
 }

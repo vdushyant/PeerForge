@@ -16,7 +16,9 @@ import com.peerforge.session.entity.SessionStatus;
 import com.peerforge.session.repository.SessionRepository;
 import com.peerforge.user.entity.User;
 import com.peerforge.user.repository.UserRepository;
+import com.razorpay.RazorpayClient;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +35,10 @@ public class PaymentServiceImpl implements PaymentService {
     private final SessionRepository sessionRepository;
     private final PaymentRepository paymentRepository;
     private final PaymentMapper paymentMapper;
+//    private final RazorpayClient razorpayClient;
+
+//    @Value("${razorpay.key-id}")
+//    private String razorpayKey;
 
     @Override
     @Transactional

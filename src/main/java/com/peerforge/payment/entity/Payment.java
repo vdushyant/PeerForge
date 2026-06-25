@@ -48,4 +48,7 @@ public class Payment extends BaseEntity {
     @Column(name = "provider_payment_id")
     private String providerPaymentId;
 
+    @Column(name = "provider_signature")
+    private String providerSignature;
+
 }

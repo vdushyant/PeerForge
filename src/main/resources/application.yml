@@ -24,3 +24,7 @@ application:
       secret-key: ${YOUR_LONG_SECRET_KEY_HERE}
       expiration: 900000
       refresh-token-expiration: 604800000
+
+razorpay:
+  key-id: ${RAZORPAY_KEY_ID}
+  key-secret: ${RAZORPAY_KEY_SECRET}
