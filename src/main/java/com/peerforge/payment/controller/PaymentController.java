@@ -1,12 +1,9 @@
 package com.peerforge.payment.controller;
 
 import com.peerforge.payment.dto.response.PaymentResponse;
-import com.peerforge.payment.service.PaymentService;
+import com.peerforge.payment.service.PaymentLifecycleService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -15,21 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 public class PaymentController {
 
-    private final PaymentService paymentService;
-
-    @PostMapping("/session/{sessionId}")
-    @ResponseStatus(HttpStatus.CREATED)
-    public PaymentResponse createPayment(
-            @PathVariable
-            Long sessionId,
-            @AuthenticationPrincipal
-            UserDetails userDetails
-    ) {
-        return paymentService.createPayment(
-                        sessionId,
-                        userDetails.getUsername()
-                );
-    }
+    private final PaymentLifecycleService paymentLifecycleService;
 
     @PatchMapping("/{id}/success")
     @PreAuthorize("hasRole('ADMIN')")
@@ -37,7 +20,7 @@ public class PaymentController {
             @PathVariable
             Long id
     ) {
-        return paymentService.markPaymentSuccess(id);
+        return paymentLifecycleService.completePayment(id);
     }
 
     @PatchMapping("/{id}/failed")
@@ -46,7 +29,7 @@ public class PaymentController {
             @PathVariable
             Long id
     ) {
-        return paymentService.markPaymentFailed(id);
+        return paymentLifecycleService.markPaymentFailed(id);
     }
 
     @PatchMapping("/{id}/refund")
@@ -55,6 +38,7 @@ public class PaymentController {
             @PathVariable
             Long id
     ) {
-        return paymentService.refundPayment(id);
+        return paymentLifecycleService.refundPayment(id);
     }
+
 }

@@ -77,6 +77,22 @@ public class GlobalExceptionHandler {
                 .body(response);
     }
 
+    @ExceptionHandler(PaymentGatewayException.class)
+    public ResponseEntity<ErrorResponse> handleNotFound(PaymentGatewayException ex, HttpServletRequest request) {
+        ErrorResponse response =
+                new ErrorResponse(
+                        LocalDateTime.now(),
+                        HttpStatus.BAD_GATEWAY.value(),
+                        HttpStatus.BAD_GATEWAY.getReasonPhrase(),
+                        ex.getMessage(),
+                        request.getRequestURI()
+                );
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_GATEWAY)
+                .body(response);
+    }
+
     @ExceptionHandler({
             InvalidSessionStateException.class,
             InvalidPaymentStateException.class,

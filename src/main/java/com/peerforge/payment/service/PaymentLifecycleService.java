@@ -1,15 +1,12 @@
 package com.peerforge.payment.service;
 
+import com.peerforge.payment.dto.request.VerifyPaymentRequest;
+import com.peerforge.payment.dto.response.CreateOrderResponse;
 import com.peerforge.payment.dto.response.PaymentResponse;
 
-public interface PaymentService {
+public interface PaymentLifecycleService {
 
-    PaymentResponse createPayment(
-            Long sessionId,
-            String email
-    );
-
-    PaymentResponse markPaymentSuccess(
+    PaymentResponse completePayment(
             Long paymentId
     );
 
