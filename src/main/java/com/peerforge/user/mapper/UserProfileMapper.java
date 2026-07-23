@@ -1,5 +1,6 @@
 package com.peerforge.user.mapper;
 
+import com.peerforge.role.entity.Role;
 import com.peerforge.skill.entity.Skill;
 import com.peerforge.user.dto.request.CreateProfileRequest;
 import com.peerforge.user.dto.request.UpdateProfileRequest;
@@ -9,6 +10,8 @@ import org.mapstruct.Mapper;
 import org.mapstruct.MappingTarget;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Mapper(componentModel = "spring")
 public interface UserProfileMapper {
@@ -32,9 +35,19 @@ public interface UserProfileMapper {
                         .map(Skill::getName)
                         .sorted()
                         .toList();
+        List<String> roles = profile.getUser()
+                .getRoles()
+                .stream()
+                .map(Role::getName).
+                sorted().
+                toList();
 
         return new UserProfileResponse(
                 profile.getId(),
+                profile.getUser().getFirstName(),
+                profile.getUser().getLastName(),
+                profile.getUser().getEmail(),
+                roles,
                 profile.getHeadline(),
                 profile.getBio(),
                 profile.getYearsOfExperience(),
