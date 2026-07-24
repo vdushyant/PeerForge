@@ -1,6 +1,7 @@
 package com.peerforge.auth.service.impl;
 
 import com.peerforge.auth.dto.request.LoginRequest;
+import com.peerforge.auth.dto.request.RefreshTokenRequest;
 import com.peerforge.auth.dto.request.RegisterRequest;
 import com.peerforge.auth.dto.response.AuthenticationResponse;
 import com.peerforge.auth.entity.RefreshToken;
@@ -10,6 +11,7 @@ import com.peerforge.auth.security.CustomUserDetails;
 import com.peerforge.auth.service.AuthService;
 import com.peerforge.auth.service.JwtService;
 import com.peerforge.common.exception.DuplicateResourceException;
+import com.peerforge.common.exception.InvalidRefreshTokenException;
 import com.peerforge.common.exception.ResourceNotFoundException;
 import com.peerforge.role.entity.Role;
 import com.peerforge.role.repository.RoleRepository;
@@ -66,32 +68,7 @@ public class AuthServiceImpl implements AuthService {
 
         User savedUser = userRepository.save(user);
 
-        UserDetails userDetails = new CustomUserDetails(savedUser);
-
-        String accessToken = jwtService.generateToken(userDetails);
-
-        String refreshTokenValue = jwtService.generateRefreshToken(userDetails);
-
-        RefreshToken refreshToken =
-                RefreshToken.builder()
-                        .token(refreshTokenValue)
-                        .expiryDate(
-                                LocalDateTime.now()
-                                        .plusSeconds(
-                                                jwtService.getRefreshExpiration() / 1000
-                                        )
-                        )
-                        .revoked(false)
-                        .createdAt(LocalDateTime.now())
-                        .user(savedUser)
-                        .build();
-
-        refreshTokenRepository.save(refreshToken);
-
-        return new AuthenticationResponse(
-                accessToken,
-                refreshTokenValue
-        );
+        return createAuthenticationResponse(savedUser);
     }
 
     @Override
@@ -113,13 +90,47 @@ public class AuthServiceImpl implements AuthService {
                         )
                 );
 
+        return createAuthenticationResponse(user);
+    }
+
+    @Override
+    @Transactional
+    public AuthenticationResponse refresh(
+            RefreshTokenRequest request
+    ) {
+        RefreshToken refreshToken =
+                refreshTokenRepository
+                        .findByToken(request.refreshToken())
+                        .orElseThrow(() ->
+                                new InvalidRefreshTokenException("Invalid refresh token"));;
+
+        if (refreshToken.getRevoked()) {
+            throw new InvalidRefreshTokenException("Refresh token has been revoked");
+        }
+
+        if (refreshToken.getExpiryDate().isBefore(LocalDateTime.now())) {
+            throw new InvalidRefreshTokenException("Refresh token has expired");
+        }
+
+        refreshToken.setRevoked(true);
+        refreshTokenRepository.save(refreshToken);
+
+        return createAuthenticationResponse(refreshToken.getUser());
+    }
+
+    private AuthenticationResponse createAuthenticationResponse(
+            User user
+    ) {
         UserDetails userDetails = new CustomUserDetails(user);
 
-        String accessToken = jwtService.generateToken(userDetails);
+        String accessToken =
+                jwtService.generateToken(userDetails);
 
-        String refreshTokenValue = jwtService.generateRefreshToken(userDetails);
+        String refreshTokenValue =
+                jwtService.generateRefreshToken(userDetails);
 
-        RefreshToken refreshToken = RefreshToken.builder()
+        RefreshToken refreshToken =
+                RefreshToken.builder()
                         .token(refreshTokenValue)
                         .expiryDate(
                                 LocalDateTime.now()

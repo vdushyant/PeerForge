@@ -98,7 +98,8 @@ public class GlobalExceptionHandler {
             InvalidPaymentStateException.class,
             PaymentAlreadyExistsException.class,
             BookingConflictException.class,
-            MentorUnavailableException.class
+            MentorUnavailableException.class,
+            InvalidRefreshTokenException.class
     })
     public ResponseEntity<ErrorResponse> handleBusinessException(
             RuntimeException ex,

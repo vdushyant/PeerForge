@@ -1,6 +1,7 @@
 package com.peerforge.auth.controller;
 
 import com.peerforge.auth.dto.request.LoginRequest;
+import com.peerforge.auth.dto.request.RefreshTokenRequest;
 import com.peerforge.auth.dto.request.RegisterRequest;
 import com.peerforge.auth.dto.response.AuthenticationResponse;
 import com.peerforge.auth.service.AuthService;
@@ -27,5 +28,12 @@ public class AuthController {
             @Valid @RequestBody LoginRequest request
     ) {
         return authService.login(request);
+    }
+
+    @PostMapping("/refresh")
+    public AuthenticationResponse refresh(
+            @Valid @RequestBody RefreshTokenRequest request
+    ) {
+        return authService.refresh(request);
     }
 }

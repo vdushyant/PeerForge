@@ -1,6 +1,7 @@
 package com.peerforge.auth.service;
 
 import com.peerforge.auth.dto.request.LoginRequest;
+import com.peerforge.auth.dto.request.RefreshTokenRequest;
 import com.peerforge.auth.dto.request.RegisterRequest;
 import com.peerforge.auth.dto.response.AuthenticationResponse;
 
@@ -12,5 +13,9 @@ public interface AuthService {
 
     AuthenticationResponse login(
             LoginRequest request
+    );
+
+    AuthenticationResponse refresh(
+            RefreshTokenRequest request
     );
 }
