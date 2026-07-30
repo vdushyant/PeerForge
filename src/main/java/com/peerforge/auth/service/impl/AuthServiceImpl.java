@@ -1,6 +1,7 @@
 package com.peerforge.auth.service.impl;
 
 import com.peerforge.auth.dto.request.LoginRequest;
+import com.peerforge.auth.dto.request.LogoutRequest;
 import com.peerforge.auth.dto.request.RefreshTokenRequest;
 import com.peerforge.auth.dto.request.RegisterRequest;
 import com.peerforge.auth.dto.response.AuthenticationResponse;
@@ -149,5 +150,22 @@ public class AuthServiceImpl implements AuthService {
                 accessToken,
                 refreshTokenValue
         );
+    }
+
+    @Override
+    @Transactional
+    public void logout(LogoutRequest request) {
+
+        RefreshToken refreshToken =
+                refreshTokenRepository
+                        .findByToken(request.refreshToken())
+                        .orElseThrow(() ->
+                                new InvalidRefreshTokenException(
+                                        "Invalid refresh token"
+                                ));
+
+        refreshToken.setRevoked(true);
+
+        refreshTokenRepository.save(refreshToken);
     }
 }

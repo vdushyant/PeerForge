@@ -1,6 +1,7 @@
 package com.peerforge.auth.controller;
 
 import com.peerforge.auth.dto.request.LoginRequest;
+import com.peerforge.auth.dto.request.LogoutRequest;
 import com.peerforge.auth.dto.request.RefreshTokenRequest;
 import com.peerforge.auth.dto.request.RegisterRequest;
 import com.peerforge.auth.dto.response.AuthenticationResponse;
@@ -35,5 +36,13 @@ public class AuthController {
             @Valid @RequestBody RefreshTokenRequest request
     ) {
         return authService.refresh(request);
+    }
+
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void logout(
+            @Valid @RequestBody LogoutRequest request
+    ) {
+        authService.logout(request);
     }
 }
