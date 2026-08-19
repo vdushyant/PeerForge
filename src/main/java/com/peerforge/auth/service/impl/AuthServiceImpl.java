@@ -18,6 +18,7 @@ import com.peerforge.role.entity.Role;
 import com.peerforge.role.repository.RoleRepository;
 import com.peerforge.user.entity.AccountStatus;
 import com.peerforge.user.entity.User;
+import com.peerforge.user.service.UserProfileService;
 import com.peerforge.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -35,6 +36,7 @@ public class AuthServiceImpl implements AuthService {
 
     private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
+    private final UserProfileService userProfileService;
     private final RoleRepository roleRepository;
     private final RefreshTokenRepository refreshTokenRepository;
 
@@ -68,6 +70,8 @@ public class AuthServiceImpl implements AuthService {
         user.getRoles().add(clientRole);
 
         User savedUser = userRepository.save(user);
+
+        userProfileService.createInitialProfile(savedUser);
 
         return createAuthenticationResponse(savedUser);
     }

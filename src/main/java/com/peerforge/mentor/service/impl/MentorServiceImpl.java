@@ -1,11 +1,14 @@
 package com.peerforge.mentor.service.impl;
 
 import com.peerforge.common.exception.DuplicateResourceException;
+import com.peerforge.common.exception.MentorUnavailableException;
 import com.peerforge.common.exception.ResourceNotFoundException;
 import com.peerforge.mentor.dto.request.CreateAvailabilityRequest;
 import com.peerforge.mentor.dto.request.MentorApplicationRequest;
+import com.peerforge.mentor.dto.request.UpdateMentorProfileRequest;
 import com.peerforge.mentor.dto.response.AvailabilityResponse;
 import com.peerforge.mentor.dto.response.MentorCardResponse;
+import com.peerforge.mentor.dto.response.MentorDetailResponse;
 import com.peerforge.mentor.dto.response.MentorProfileResponse;
 import com.peerforge.mentor.entity.ApprovalStatus;
 import com.peerforge.mentor.entity.MentorAvailability;
@@ -152,37 +155,21 @@ public class MentorServiceImpl
             Long mentorId
     ) {
 
-        MentorProfile mentorProfile =
-                mentorProfileRepository
-                        .findById(mentorId)
-
-                        .orElseThrow(() ->
-
+        MentorProfile mentorProfile = mentorProfileRepository.findById(mentorId).orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Mentor not found"
                                 ));
 
-        if (mentorProfile.getApprovalStatus()
-                == ApprovalStatus.APPROVED) {
-
+        if (mentorProfile.getApprovalStatus() == ApprovalStatus.APPROVED) {
             throw new DuplicateResourceException(
                     "Mentor already approved"
             );
         }
 
-        Role mentorRole =
-                roleRepository.findByName(
-                                RoleName.MENTOR.name()
-                        )
-
-                        .orElseThrow(() ->
-
-                                new ResourceNotFoundException(
-                                        "Role not found"
-                                ));
+        Role mentorRole = roleRepository.findByName(RoleName.MENTOR.name())
+                        .orElseThrow(() -> new ResourceNotFoundException("Role not found"));
 
         User user = mentorProfile.getUser();
-
         user.getRoles().add(mentorRole);
 
         mentorProfile.setApprovalStatus(
@@ -201,6 +188,47 @@ public class MentorServiceImpl
     }
 
     @Override
+    public MentorProfileResponse getMyMentorProfile(String email) {
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found"
+                        ));
+
+        MentorProfile mentorProfile = mentorProfileRepository
+                .findByUserId(user.getId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Mentor profile not found"
+                        )
+                );
+
+        return mentorProfileMapper.toResponse(mentorProfile);
+    }
+
+    @Override
+    public MentorProfileResponse updateMyMentorProfile(
+            UpdateMentorProfileRequest request,
+            String email
+    ) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found"
+                        ));
+
+        MentorProfile mentorProfile = mentorProfileRepository.findByUserId(user.getId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Mentor profile not found"));
+
+        mentorProfile.setAbout(request.getAbout());
+        mentorProfile.setHourlyRate(request.getHourlyRate());
+
+        MentorProfile saved = mentorProfileRepository.save(mentorProfile);
+        return mentorProfileMapper.toResponse(saved);
+    }
+
+    @Override
     public AvailabilityResponse addAvailability(
             CreateAvailabilityRequest request,
             String email
@@ -214,14 +242,14 @@ public class MentorServiceImpl
                         ));
 
 
-        MentorProfile mentor =
-                mentorProfileRepository
-                        .findByUserId(
-                                user.getId()
-                        ).orElseThrow(() ->
+        MentorProfile mentor = mentorProfileRepository.findByUserId(user.getId()).orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Mentor not found"
                                 ));
+
+        if (mentor.getApprovalStatus() != ApprovalStatus.APPROVED) {
+            throw new MentorUnavailableException("Mentor profile is not approved");
+        }
 
         if (!request.startTime().isBefore(request.endTime())) {
             throw new IllegalArgumentException("Start time must be before end time");
@@ -241,16 +269,101 @@ public class MentorServiceImpl
             }
         }
 
-        MentorAvailability availability =
-                mentorProfileMapper
-                        .toEntity(
-                                request
-                        );
-
+        MentorAvailability availability = mentorProfileMapper.toEntity(request);
 
         availability.setMentorProfile(mentor);
         MentorAvailability saved = mentorAvailabilityRepository.save(availability);
         return mentorProfileMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AvailabilityResponse> getMyAvailability(
+            String email
+    ) {
+
+        User user = userRepository
+                .findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found"
+                        ));
+
+        MentorProfile mentor = mentorProfileRepository.findByUserId(user.getId()).orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Mentor not found"
+                                ));
+
+        if (mentor.getApprovalStatus() != ApprovalStatus.APPROVED) {
+            throw new MentorUnavailableException("Mentor profile is not approved");
+        }
+
+        return mentorAvailabilityRepository
+                .findByMentorProfileId(mentor.getId())
+                .stream()
+                .map(mentorProfileMapper::toResponse)
+                .toList();
+    }
+
+    @Override
+    public void deleteAvailability(
+            Long availabilityId,
+            String email
+    ) {
+
+        User user = userRepository
+                .findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found"
+                        ));
+
+        MentorProfile mentor = mentorProfileRepository
+                        .findByUserId(user.getId())
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Mentor not found"
+                                ));
+
+        if (mentor.getApprovalStatus() != ApprovalStatus.APPROVED) {
+            throw new MentorUnavailableException("Mentor profile is not approved");
+        }
+
+        MentorAvailability availability =
+                mentorAvailabilityRepository
+                        .findById(availabilityId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Availability not found"
+                                ));
+
+        if (!availability.getMentorProfile().getId()
+                .equals(mentor.getId())) {
+
+            throw new ResourceNotFoundException(
+                    "Availability not found"
+            );
+        }
+
+        mentorAvailabilityRepository.delete(availability);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public MentorDetailResponse getMentorById(Long mentorId) {
+
+        MentorProfile mentor = mentorProfileRepository.findById(mentorId).orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Mentor not found"
+                                ));
+
+        if (mentor.getApprovalStatus() != ApprovalStatus.APPROVED) {
+            throw new ResourceNotFoundException(
+                    "Mentor not found"
+            );
+        }
+
+        return mentorProfileMapper.toDetailResponse(mentor);
     }
 
 }

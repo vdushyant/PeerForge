@@ -10,4 +10,5 @@ import java.util.List;
 public interface MentorAvailabilityRepository
         extends JpaRepository<MentorAvailability, Long> {
     List<MentorAvailability> findByMentorProfileId(Long mentorId);
+
 }

@@ -28,30 +28,6 @@ public class UserProfileServiceImpl implements UserProfileService {
     private final SkillRepository skillRepository;
 
     @Override
-    public UserProfileResponse createProfile(CreateProfileRequest request, String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "User not found"
-                        ));
-
-        if (userProfileRepository.findByUserId(user.getId())
-                .isPresent()) {
-            throw new DuplicateResourceException(
-                    "Profile already exists"
-            );
-        }
-
-        UserProfile profile = userProfileMapper.toEntity(request);
-
-        profile.setUser(user);
-
-        UserProfile savedProfile = userProfileRepository.save(profile);
-
-        return userProfileMapper.toResponse(savedProfile);
-    }
-
-    @Override
     @Transactional(readOnly = true)
     public UserProfileResponse getMyProfile(String email) {
 
@@ -150,6 +126,16 @@ public class UserProfileServiceImpl implements UserProfileService {
         user.getSkills().remove(skill);
 
         userRepository.save(user);
+    }
+
+    @Override
+    public UserProfile createInitialProfile(User user) {
+
+        UserProfile profile = UserProfile.builder()
+                .user(user)
+                .build();
+
+        return userProfileRepository.save(profile);
     }
 
 }

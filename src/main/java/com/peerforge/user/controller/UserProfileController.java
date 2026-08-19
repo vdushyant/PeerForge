@@ -17,20 +17,6 @@ import org.springframework.web.bind.annotation.*;
 public class UserProfileController {
 
     private final UserProfileService userProfileService;
-
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public UserProfileResponse createProfile(
-            @Valid @RequestBody CreateProfileRequest request,
-            @AuthenticationPrincipal UserDetails userDetails
-    ) {
-
-        return userProfileService.createProfile(
-                request,
-                userDetails.getUsername()
-        );
-    }
-
     @GetMapping("/me")
     public UserProfileResponse getMyProfile(
             @AuthenticationPrincipal UserDetails userDetails
