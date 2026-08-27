@@ -47,6 +47,12 @@ public class SessionServiceImpl implements SessionService {
                         new ResourceNotFoundException(
                                 "Mentor not found"));
 
+        if (mentor.getUser().getId().equals(client.getId())) {
+            throw new BookingConflictException(
+                    "You cannot book a session with yourself"
+            );
+        }
+
         if (mentor.getApprovalStatus()
                 != ApprovalStatus.APPROVED) {
             throw new MentorUnavailableException(
@@ -140,16 +146,22 @@ public class SessionServiceImpl implements SessionService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<SessionResponse> getMentorSessions(Long mentorId) {
-        mentorProfileRepository.findById(mentorId)
-                .orElseThrow(
-                        () -> new ResourceNotFoundException("Mentor not found")
-                );
+    public List<SessionResponse> getMentorSessions(String email) {
 
-        return sessionRepository.findByMentorIdOrderByStartDateTimeAsc(mentorId)
-                        .stream()
-                        .map(sessionMapper::toResponse)
-                        .toList();
+        User mentorUser = getCurrentUser(email);
+
+        MentorProfile mentor = mentorProfileRepository
+                .findByUserId(mentorUser.getId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Mentor profile not found"
+                        ));
+
+        return sessionRepository
+                .findByMentorIdOrderByStartDateTimeAsc(mentor.getId())
+                .stream()
+                .map(sessionMapper::toResponse)
+                .toList();
     }
 
     @Override

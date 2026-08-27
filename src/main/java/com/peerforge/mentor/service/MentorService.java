@@ -38,5 +38,6 @@ public interface MentorService {
     List<AvailabilityResponse> getMyAvailability(String email);
     void deleteAvailability(Long availabilityId, String email);
     MentorDetailResponse getMentorById(Long mentorId);
+    List<AvailabilityResponse> getMentorAvailability(Long mentorId);
 
 }

@@ -15,7 +15,6 @@ import java.util.List;
 @RestController
 
 @RequestMapping("/api/v1/sessions")
-
 @RequiredArgsConstructor
 
 public class SessionController {
@@ -40,12 +39,10 @@ public class SessionController {
         return sessionService.getMySessions(userDetails.getUsername());
     }
 
-    @GetMapping("/mentor/{mentorId}")
+    @GetMapping("/mentor")
     public List<SessionResponse>
-    getMentorSessions(
-            @PathVariable
-            Long mentorId) {
-        return sessionService.getMentorSessions(mentorId);
+    getMentorSessions(@AuthenticationPrincipal  UserDetails userDetails) {
+        return sessionService.getMentorSessions(userDetails.getUsername());
     }
 
     @PatchMapping("/{id}/confirm")

@@ -13,7 +13,7 @@ public interface SessionService {
     );
 
     List<SessionResponse> getMySessions(String email);
-    List<SessionResponse> getMentorSessions(Long mentorId);
+    List<SessionResponse> getMentorSessions(String email);
     SessionResponse confirmSession(Long sessionId, String email);
     SessionResponse cancelSession(Long sessionId, String email);
     SessionResponse completeSession(Long sessionId, String email);

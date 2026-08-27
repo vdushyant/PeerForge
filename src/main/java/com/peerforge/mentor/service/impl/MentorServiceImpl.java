@@ -366,4 +366,22 @@ public class MentorServiceImpl
         return mentorProfileMapper.toDetailResponse(mentor);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<AvailabilityResponse> getMentorAvailability(Long mentorId) {
+
+        MentorProfile mentor = mentorProfileRepository.findById(mentorId).orElseThrow(() ->
+                                new ResourceNotFoundException("Mentor not found"));
+
+        if (mentor.getApprovalStatus() != ApprovalStatus.APPROVED) {
+            throw new ResourceNotFoundException("Mentor not found");
+        }
+
+        return mentorAvailabilityRepository
+                .findByMentorProfileId(mentorId)
+                .stream()
+                .map(mentorProfileMapper::toResponse)
+                .toList();
+    }
+
 }

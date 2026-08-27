@@ -95,4 +95,11 @@ public class MentorController {
     ) {
         mentorService.deleteAvailability(availabilityId, userDetails.getUsername());
     }
+
+    @GetMapping("/{mentorId}/availability")
+    public List<AvailabilityResponse> getMentorAvailability(
+            @PathVariable Long mentorId
+    ) {
+        return mentorService.getMentorAvailability(mentorId);
+    }
 }
