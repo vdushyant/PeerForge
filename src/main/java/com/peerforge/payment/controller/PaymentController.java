@@ -4,6 +4,8 @@ import com.peerforge.payment.dto.response.PaymentResponse;
 import com.peerforge.payment.service.PaymentLifecycleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -30,6 +32,14 @@ public class PaymentController {
             Long id
     ) {
         return paymentLifecycleService.markPaymentFailed(id);
+    }
+
+    @PatchMapping("/{id}/client-failed")
+    public PaymentResponse markClientPaymentFailed(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        return paymentLifecycleService.markClientPaymentFailed(id, userDetails.getUsername());
     }
 
     @PatchMapping("/{id}/refund")

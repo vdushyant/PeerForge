@@ -46,10 +46,8 @@ public class PaymentOrderServiceImpl implements PaymentOrderService {
             Long sessionId,
             String email
     ) {
-
         User currentUser = getCurrentUser(email);
         Session session = getSession(sessionId);
-
 
         if (!session.getClient().getId().equals(currentUser.getId())) {
             throw new AccessDeniedException(
@@ -57,19 +55,46 @@ public class PaymentOrderServiceImpl implements PaymentOrderService {
             );
         }
 
-
-        paymentRepository.findBySessionId(sessionId)
-                .ifPresent(payment -> {
-                    throw new PaymentAlreadyExistsException("Payment already exists");
-                });
-
         if (session.getStatus() != SessionStatus.PENDING) {
             throw new InvalidSessionStateException(
                     "Payment can only be created for pending sessions"
             );
         }
 
+        /*
+         * If a payment already exists for this session:
+         *
+         * PENDING  -> reuse the existing Razorpay order
+         * FAILED   -> create a new Razorpay order
+         * SUCCESS  -> should not happen because session is CONFIRMED
+         * REFUNDED -> should not happen because session is CANCELLED
+         */
+        var existingPayment =
+                paymentRepository.findBySessionId(sessionId);
+
+        if (existingPayment.isPresent()) {
+            Payment payment = existingPayment.get();
+
+            if (payment.getStatus() == PaymentStatus.PENDING) {
+                return new CreateOrderResponse(
+                        payment.getId(),
+                        session.getId(),
+                        payment.getProviderOrderId(),
+                        razorpayKey,
+                        payment.getAmount(),
+                        "INR"
+                );
+            }
+
+            if (payment.getStatus() != PaymentStatus.FAILED) {
+                throw new InvalidPaymentStateException(
+                        "Payment cannot be retried"
+                );
+            }
+        }
+
         MentorProfile mentor = session.getMentor();
+
         BigDecimal hourlyRate = mentor.getHourlyRate();
 
         long durationMinutes = Duration.between(
@@ -77,14 +102,16 @@ public class PaymentOrderServiceImpl implements PaymentOrderService {
                 session.getEndDateTime()
         ).toMinutes();
 
+        BigDecimal durationHours =
+                BigDecimal.valueOf(durationMinutes)
+                        .divide(
+                                BigDecimal.valueOf(60),
+                                2,
+                                RoundingMode.HALF_UP
+                        );
 
-        BigDecimal durationHours = BigDecimal.valueOf(durationMinutes).divide(
-                BigDecimal.valueOf(60),
-                2,
-                RoundingMode.HALF_UP
-        );
-
-        BigDecimal amount = hourlyRate.multiply(durationHours);
+        BigDecimal amount =
+                hourlyRate.multiply(durationHours);
 
         GatewayOrder gatewayOrder =
                 paymentGateway.createOrder(
@@ -92,16 +119,32 @@ public class PaymentOrderServiceImpl implements PaymentOrderService {
                         "session_" + sessionId
                 );
 
-        Payment payment = Payment.builder()
-                .session(session)
-                .amount(amount)
-                .status(PaymentStatus.PENDING)
-                .providerOrderId(
-                        gatewayOrder.orderId()
-                )
-                .build();
+        Payment payment;
 
-        Payment saved = paymentRepository.save(payment);
+        if (existingPayment.isPresent()) {
+            payment = existingPayment.get();
+
+            payment.setStatus(PaymentStatus.PENDING);
+            payment.setAmount(amount);
+            payment.setProviderOrderId(
+                    gatewayOrder.orderId()
+            );
+            payment.setProviderPaymentId(null);
+            payment.setProviderSignature(null);
+        } else {
+            payment = Payment.builder()
+                    .session(session)
+                    .amount(amount)
+                    .status(PaymentStatus.PENDING)
+                    .providerOrderId(
+                            gatewayOrder.orderId()
+                    )
+                    .build();
+        }
+
+        Payment saved =
+                paymentRepository.save(payment);
+
         return new CreateOrderResponse(
                 saved.getId(),
                 session.getId(),

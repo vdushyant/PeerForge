@@ -13,6 +13,7 @@ import com.peerforge.session.repository.SessionRepository;
 import com.peerforge.user.entity.User;
 import com.peerforge.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -83,6 +84,40 @@ public class PaymentLifecycleServiceImpl implements PaymentLifecycleService {
         payment.getSession().setStatus(SessionStatus.CANCELLED);
 
         Payment saved = paymentRepository.save(payment);
+        return paymentMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public PaymentResponse markClientPaymentFailed(
+            Long paymentId,
+            String email
+    ) {
+        User currentUser = getCurrentUser(email);
+
+        Payment payment = getPayment(paymentId);
+
+        if (!payment.getSession()
+                .getClient()
+                .getId()
+                .equals(currentUser.getId())) {
+
+            throw new AccessDeniedException(
+                    "You are not allowed to modify this payment"
+            );
+        }
+
+        if (payment.getStatus() != PaymentStatus.PENDING) {
+            throw new InvalidPaymentStateException(
+                    "Only pending payments can be marked failed"
+            );
+        }
+
+        payment.setStatus(PaymentStatus.FAILED);
+
+        Payment saved =
+                paymentRepository.save(payment);
+
         return paymentMapper.toResponse(saved);
     }
 

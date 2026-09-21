@@ -18,4 +18,9 @@ public interface PaymentLifecycleService {
             Long paymentId
     );
 
+    PaymentResponse markClientPaymentFailed(
+            Long paymentId,
+            String email
+    );
+
 }
