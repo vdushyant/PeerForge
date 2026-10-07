@@ -1,0 +1,31 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://dushyant-database.cvoko2ykawy5.ap-south-1.rds.amazonaws.com:5432/peerforge
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+
+server:
+  port: 8080
+
+application:
+  security:
+    jwt:
+      secret-key: ${YOUR_LONG_SECRET_KEY_HERE}
+      expiration: 900000
+      refresh-token-expiration: 604800000
+
+razorpay:
+  key-id: ${RAZORPAY_KEY_ID}
+  key-secret: ${RAZORPAY_KEY_SECRET}
+  webhook-secret: ${RAZORPAY_WEBHOOK_SECRET}

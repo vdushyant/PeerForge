@@ -15,15 +15,12 @@ public class WebhookController {
     @PostMapping("/razorpay")
     @ResponseStatus(HttpStatus.OK)
     public void razorpayWebhook(
-            @RequestBody
-            String payload,
-            @RequestHeader("X-Razorpay-Signature")
-            String signature
+            @RequestBody String payload,
+            @RequestHeader("X-Razorpay-Signature") String signature
     ) {
         webhookService.processRazorpayWebhook(
                 payload,
                 signature
         );
-
     }
 }
