@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.HexFormat;
 
 @Service
@@ -86,12 +87,7 @@ public class WebhookServiceImpl implements WebhookService {
 
         // Idempotency:
         // Razorpay may deliver the same webhook more than once.
-        if (payment.getStatus() == PaymentStatus.SUCCESS) {
-            return;
-        }
-
-        // Do not revive refunded payments.
-        if (payment.getStatus() == PaymentStatus.REFUNDED) {
+        if (payment.getStatus() != PaymentStatus.PENDING) {
             return;
         }
 
@@ -115,13 +111,9 @@ public class WebhookServiceImpl implements WebhookService {
     ) {
 
         // Idempotency.
-        if (payment.getStatus() == PaymentStatus.FAILED) {
-            return;
-        }
-
-        // Never turn a successful payment into failed.
-        if (payment.getStatus() == PaymentStatus.SUCCESS
-                || payment.getStatus() == PaymentStatus.REFUNDED) {
+        // Only pending payments may transition to failed. A later event
+        // must not overwrite a terminal payment state or a retried order.
+        if (payment.getStatus() != PaymentStatus.PENDING) {
             return;
         }
 
@@ -150,10 +142,10 @@ public class WebhookServiceImpl implements WebhookService {
                     payload.getBytes(StandardCharsets.UTF_8)
             );
 
-            String generatedSignature =
-                    HexFormat.of().formatHex(hash);
-
-            if (!generatedSignature.equalsIgnoreCase(signature)) {
+            if (signature == null || signature.isBlank()
+                    || !MessageDigest.isEqual(
+                    hash,
+                    HexFormat.of().parseHex(signature))) {
                 throw new SecurityException(
                         "Invalid Razorpay webhook signature"
                 );

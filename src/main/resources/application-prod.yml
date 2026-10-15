@@ -21,7 +21,7 @@ server:
 application:
   security:
     jwt:
-      secret-key: ${YOUR_LONG_SECRET_KEY_HERE}
+      secret-key: ${JWT_SECRET_KEY}
       expiration: 900000
       refresh-token-expiration: 604800000
 

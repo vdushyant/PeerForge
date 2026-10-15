@@ -57,6 +57,7 @@ public class SecurityConfig {
                         auth
                                 .requestMatchers(
                                         "/api/v1/auth/**",
+                                        "/api/v1/webhooks/razorpay",
                                         "/v3/api-docs/**",
                                         "/swagger-ui/**",
                                         "/swagger-ui.html"
@@ -105,7 +106,10 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         configuration.setAllowedOrigins(
-                List.of("http://localhost:5173")
+                List.of(
+                        "http://localhost:5173",
+                        "https://d1mxko2b62xlbg.cloudfront.net"
+                )
         );
 
         configuration.setAllowedMethods(
