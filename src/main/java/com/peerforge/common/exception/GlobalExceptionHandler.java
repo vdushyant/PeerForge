@@ -117,6 +117,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({
             InvalidSessionStateException.class,
+            InvalidReviewStateException.class,
             InvalidPaymentStateException.class,
             PaymentAlreadyExistsException.class,
             BookingConflictException.class,

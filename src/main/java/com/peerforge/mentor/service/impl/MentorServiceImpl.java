@@ -86,6 +86,7 @@ public class MentorServiceImpl
         mentorProfile.setAverageRating(
                 BigDecimal.ZERO
         );
+        mentorProfile.setReviewCount(0);
 
         MentorProfile savedMentorProfile =
                 mentorProfileRepository
@@ -142,7 +143,9 @@ public class MentorServiceImpl
 
                             mentor.getHourlyRate(),
 
-                            mentor.getAverageRating()
+                            mentor.getAverageRating(),
+
+                            mentor.getReviewCount()
                     );
 
                 })

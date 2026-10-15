@@ -19,6 +19,8 @@ public record MentorCardResponse(
 
         BigDecimal hourlyRate,
 
-        BigDecimal averageRating
+        BigDecimal averageRating,
+
+        Integer reviewCount
 ) {
 }

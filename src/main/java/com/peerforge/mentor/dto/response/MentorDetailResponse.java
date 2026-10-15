@@ -12,6 +12,7 @@ public record MentorDetailResponse(
         List<String> skills,
         String about,
         BigDecimal hourlyRate,
-        BigDecimal averageRating
+        BigDecimal averageRating,
+        Integer reviewCount
 ) {
 }

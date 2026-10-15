@@ -54,6 +54,9 @@ public class MentorProfile extends BaseEntity {
     )
     private BigDecimal averageRating;
 
+    @Column(name = "review_count", nullable = false)
+    private Integer reviewCount;
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(
             name = "user_id",
