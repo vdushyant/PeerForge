@@ -6,6 +6,8 @@ import com.peerforge.mentor.entity.MentorAvailability;
 import com.peerforge.mentor.entity.MentorProfile;
 import com.peerforge.mentor.repository.MentorAvailabilityRepository;
 import com.peerforge.mentor.repository.MentorProfileRepository;
+import com.peerforge.notification.entity.NotificationType;
+import com.peerforge.notification.service.NotificationService;
 import com.peerforge.role.entity.Role;
 import com.peerforge.session.dto.request.BookSessionRequest;
 import com.peerforge.session.dto.response.SessionResponse;
@@ -22,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.DayOfWeek;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -33,6 +36,10 @@ public class SessionServiceImpl implements SessionService {
     private final MentorProfileRepository mentorProfileRepository;
     private final MentorAvailabilityRepository mentorAvailabilityRepository;
     private final SessionMapper sessionMapper;
+    private final NotificationService notificationService;
+
+    private static final DateTimeFormatter NOTIFICATION_DATE =
+            DateTimeFormatter.ofPattern("EEE, d MMM 'at' HH:mm");
 
     @Override
     public SessionResponse bookSession(
@@ -127,6 +134,14 @@ public class SessionServiceImpl implements SessionService {
                         .build();
 
         Session saved = sessionRepository.save(session);
+        notificationService.notifyUser(
+                mentor.getUser(),
+                NotificationType.BOOKING_REQUESTED,
+                "New session request",
+                client.getFirstName() + " requested a session for "
+                        + request.startDateTime().format(NOTIFICATION_DATE) + ".",
+                "/mentor/sessions"
+        );
         return sessionMapper.toResponse(saved);
     }
 
@@ -176,6 +191,14 @@ public class SessionServiceImpl implements SessionService {
         session.setStatus(SessionStatus.CONFIRMED);
 
         Session saved = sessionRepository.save(session);
+        notificationService.notifyUser(
+                session.getClient(),
+                NotificationType.SESSION_CONFIRMED,
+                "Session confirmed",
+                "Your session with " + session.getMentor().getUser().getFirstName()
+                        + " is confirmed for " + session.getStartDateTime().format(NOTIFICATION_DATE) + ".",
+                "/sessions"
+        );
         return sessionMapper.toResponse(saved);
     }
 
@@ -191,6 +214,14 @@ public class SessionServiceImpl implements SessionService {
 
         session.setStatus(SessionStatus.COMPLETED);
         Session saved = sessionRepository.save(session);
+        notificationService.notifyUser(
+                session.getClient(),
+                NotificationType.SESSION_COMPLETED,
+                "Session completed",
+                "Your session with " + session.getMentor().getUser().getFirstName()
+                        + " is complete. You can now leave a review.",
+                "/sessions"
+        );
         return sessionMapper.toResponse(saved);
     }
 
@@ -206,6 +237,27 @@ public class SessionServiceImpl implements SessionService {
 
         session.setStatus(SessionStatus.CANCELLED);
         Session saved = sessionRepository.save(session);
+        String sessionTime = session.getStartDateTime().format(NOTIFICATION_DATE);
+        boolean cancelledByClient = session.getClient().getId().equals(currentUser.getId());
+        boolean cancelledByMentor = session.getMentor().getUser().getId().equals(currentUser.getId());
+        if (!cancelledByClient) {
+            notificationService.notifyUser(
+                    session.getClient(), NotificationType.SESSION_CANCELLED,
+                    "Session cancelled",
+                    "Your session with " + session.getMentor().getUser().getFirstName()
+                            + " scheduled for " + sessionTime + " was cancelled.",
+                    "/sessions"
+            );
+        }
+        if (!cancelledByMentor) {
+            notificationService.notifyUser(
+                    session.getMentor().getUser(), NotificationType.SESSION_CANCELLED,
+                    "Session cancelled",
+                    "The session with " + session.getClient().getFirstName()
+                            + " scheduled for " + sessionTime + " was cancelled.",
+                    "/mentor/sessions"
+            );
+        }
         return sessionMapper.toResponse(saved);
     }
 

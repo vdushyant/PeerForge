@@ -1,0 +1,11 @@
+package com.peerforge.notification.entity;
+
+public enum NotificationType {
+    BOOKING_REQUESTED,
+    SESSION_CONFIRMED,
+    SESSION_CANCELLED,
+    SESSION_COMPLETED,
+    PAYMENT_SUCCESS,
+    PAYMENT_FAILED,
+    PAYMENT_REFUNDED
+}

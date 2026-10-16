@@ -7,6 +7,8 @@ import com.peerforge.payment.entity.PaymentStatus;
 import com.peerforge.payment.mapper.PaymentMapper;
 import com.peerforge.payment.repository.PaymentRepository;
 import com.peerforge.payment.service.PaymentLifecycleService;
+import com.peerforge.notification.entity.NotificationType;
+import com.peerforge.notification.service.NotificationService;
 import com.peerforge.session.entity.Session;
 import com.peerforge.session.entity.SessionStatus;
 import com.peerforge.session.repository.SessionRepository;
@@ -25,6 +27,7 @@ public class PaymentLifecycleServiceImpl implements PaymentLifecycleService {
     private final SessionRepository sessionRepository;
     private final PaymentRepository paymentRepository;
     private final PaymentMapper paymentMapper;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional
@@ -48,6 +51,18 @@ public class PaymentLifecycleServiceImpl implements PaymentLifecycleService {
 
         payment.setStatus(PaymentStatus.SUCCESS);
         Payment saved = paymentRepository.save(payment);
+        notificationService.notifyUser(
+                session.getClient(), NotificationType.PAYMENT_SUCCESS,
+                "Payment successful",
+                "Your payment was received and the session is confirmed.",
+                "/sessions"
+        );
+        notificationService.notifyUser(
+                session.getMentor().getUser(), NotificationType.SESSION_CONFIRMED,
+                "Session confirmed",
+                "A paid session with " + session.getClient().getFirstName() + " is confirmed.",
+                "/mentor/sessions"
+        );
         return paymentMapper.toResponse(saved);
     }
 
@@ -64,6 +79,7 @@ public class PaymentLifecycleServiceImpl implements PaymentLifecycleService {
 
         payment.setStatus(PaymentStatus.FAILED);
         Payment saved = paymentRepository.save(payment);
+        notifyClientPaymentFailed(payment);
         return paymentMapper.toResponse(saved);
     }
 
@@ -84,6 +100,20 @@ public class PaymentLifecycleServiceImpl implements PaymentLifecycleService {
         payment.getSession().setStatus(SessionStatus.CANCELLED);
 
         Payment saved = paymentRepository.save(payment);
+        Session session = payment.getSession();
+        notificationService.notifyUser(
+                session.getClient(), NotificationType.PAYMENT_REFUNDED,
+                "Payment refunded",
+                "Your payment was refunded and the session was cancelled.",
+                "/sessions"
+        );
+        notificationService.notifyUser(
+                session.getMentor().getUser(), NotificationType.SESSION_CANCELLED,
+                "Session cancelled",
+                "The session with " + session.getClient().getFirstName()
+                        + " was cancelled after a refund.",
+                "/mentor/sessions"
+        );
         return paymentMapper.toResponse(saved);
     }
 
@@ -117,8 +147,18 @@ public class PaymentLifecycleServiceImpl implements PaymentLifecycleService {
 
         Payment saved =
                 paymentRepository.save(payment);
+        notifyClientPaymentFailed(payment);
 
         return paymentMapper.toResponse(saved);
+    }
+
+    private void notifyClientPaymentFailed(Payment payment) {
+        notificationService.notifyUser(
+                payment.getSession().getClient(), NotificationType.PAYMENT_FAILED,
+                "Payment not completed",
+                "We could not confirm payment for your session. You can try again from your sessions.",
+                "/sessions"
+        );
     }
 
     // Lookup Helpers
