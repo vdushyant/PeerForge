@@ -19,6 +19,8 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.web.util.matcher.RegexRequestMatcher;
+import org.springframework.http.HttpMethod;
 
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -61,6 +63,23 @@ public class SecurityConfig {
                                         "/v3/api-docs/**",
                                         "/swagger-ui/**",
                                         "/swagger-ui.html"
+                                ).permitAll()
+                                .requestMatchers(
+                                        HttpMethod.GET,
+                                        "/api/v1/mentors",
+                                        "/api/v1/mentors/*/reviews",
+                                        "/api/v1/skills",
+                                        "/api/v1/public/**"
+                                ).permitAll()
+                                .requestMatchers(
+                                        RegexRequestMatcher.regexMatcher(
+                                                HttpMethod.GET,
+                                                "^/api/v1/mentors/[0-9]+$"
+                                        ),
+                                        RegexRequestMatcher.regexMatcher(
+                                                HttpMethod.GET,
+                                                "^/api/v1/mentors/[0-9]+/availability$"
+                                        )
                                 ).permitAll()
                                 .requestMatchers(
                                         "/api/v1/admin/**"

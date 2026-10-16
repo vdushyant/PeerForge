@@ -1,6 +1,7 @@
 package com.peerforge.mentor.repository;
 
 import com.peerforge.mentor.entity.MentorProfile;
+import com.peerforge.mentor.entity.ApprovalStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -16,6 +17,8 @@ public interface MentorProfileRepository
 
     Optional<MentorProfile>
     findByUserId(Long userId);
+
+    long countByApprovalStatus(ApprovalStatus approvalStatus);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select mentor from MentorProfile mentor where mentor.id = :mentorId")

@@ -1,6 +1,7 @@
 package com.peerforge.session.repository;
 
 import com.peerforge.session.entity.Session;
+import com.peerforge.session.entity.SessionStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -14,4 +15,5 @@ public interface SessionRepository
     List<Session> findByClientId(Long clientId);
     List<Session> findByClientIdOrderByStartDateTimeAsc(Long clientId);
     List<Session> findByMentorIdOrderByStartDateTimeAsc(Long mentorId);
+    long countByStatus(SessionStatus status);
 }

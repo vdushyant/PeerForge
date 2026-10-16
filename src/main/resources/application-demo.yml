@@ -1,0 +1,3 @@
+peerforge:
+  demo:
+    password: ${PEERFORGE_DEMO_PASSWORD:}

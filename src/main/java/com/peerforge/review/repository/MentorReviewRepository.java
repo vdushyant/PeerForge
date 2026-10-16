@@ -23,13 +23,22 @@ public interface MentorReviewRepository extends JpaRepository<MentorReview, Long
 
     List<MentorReview> findAllByStatusOrderByCreatedAtAsc(ReviewStatus status);
 
+    List<MentorReview> findTop6ByStatusAndCommentIsNotNullOrderByCreatedAtDesc(
+            ReviewStatus status
+    );
+
     long countByMentor_IdAndStatus(Long mentorId, ReviewStatus status);
+
+    long countByStatus(ReviewStatus status);
 
     @Query("select avg(r.rating) from MentorReview r where r.mentor.id = :mentorId and r.status = :status")
     Double findAverageRating(
             @Param("mentorId") Long mentorId,
             @Param("status") ReviewStatus status
     );
+
+    @Query("select avg(r.rating) from MentorReview r where r.status = :status")
+    Double findOverallAverageRating(@Param("status") ReviewStatus status);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select r from MentorReview r where r.id = :reviewId")
