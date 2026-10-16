@@ -10,9 +10,12 @@ import com.peerforge.mentor.dto.response.AvailabilityResponse;
 import com.peerforge.mentor.dto.response.MentorCardResponse;
 import com.peerforge.mentor.dto.response.MentorDetailResponse;
 import com.peerforge.mentor.dto.response.MentorProfileResponse;
+import com.peerforge.mentor.dto.response.MentorApplicationResponse;
 import com.peerforge.mentor.entity.ApprovalStatus;
 import com.peerforge.mentor.entity.MentorAvailability;
 import com.peerforge.mentor.entity.MentorProfile;
+import com.peerforge.notification.entity.NotificationType;
+import com.peerforge.notification.service.NotificationService;
 import com.peerforge.mentor.mapper.MentorProfileMapper;
 import com.peerforge.mentor.repository.MentorAvailabilityRepository;
 import com.peerforge.mentor.repository.MentorProfileRepository;
@@ -27,6 +30,8 @@ import com.peerforge.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -49,6 +54,7 @@ public class MentorServiceImpl
 
     private final MentorAvailabilityRepository
             mentorAvailabilityRepository;
+    private final NotificationService notificationService;
 
     @Override
     public MentorProfileResponse applyForMentorship(
@@ -62,13 +68,17 @@ public class MentorServiceImpl
                                 "User not found"
                         ));
 
-        if (mentorProfileRepository
-                .findByUserId(user.getId())
-                .isPresent()) {
-
-            throw new DuplicateResourceException(
-                    "Mentor profile already exists"
-            );
+        var existingProfile = mentorProfileRepository.findByUserId(user.getId());
+        if (existingProfile.isPresent()) {
+            MentorProfile existing = existingProfile.get();
+            if (existing.getApprovalStatus() != ApprovalStatus.REJECTED) {
+                throw new DuplicateResourceException("Mentor profile already exists");
+            }
+            existing.setAbout(request.about());
+            existing.setHourlyRate(request.hourlyRate());
+            existing.setApprovalStatus(ApprovalStatus.PENDING);
+            existing.setRejectionReason(null);
+            return mentorProfileMapper.toResponse(mentorProfileRepository.save(existing));
         }
 
         MentorProfile mentorProfile =
@@ -80,6 +90,7 @@ public class MentorServiceImpl
         mentorProfile.setApprovalStatus(
                 ApprovalStatus.PENDING
         );
+        mentorProfile.setRejectionReason(null);
 
         mentorProfile.setSessionsCompleted(0);
 
@@ -163,9 +174,9 @@ public class MentorServiceImpl
                                         "Mentor not found"
                                 ));
 
-        if (mentorProfile.getApprovalStatus() == ApprovalStatus.APPROVED) {
+        if (mentorProfile.getApprovalStatus() != ApprovalStatus.PENDING) {
             throw new DuplicateResourceException(
-                    "Mentor already approved"
+                    "Only pending mentor applications can be approved"
             );
         }
 
@@ -178,6 +189,7 @@ public class MentorServiceImpl
         mentorProfile.setApprovalStatus(
                 ApprovalStatus.APPROVED
         );
+        mentorProfile.setRejectionReason(null);
 
         userRepository.save(user);
 
@@ -185,9 +197,64 @@ public class MentorServiceImpl
                 mentorProfileRepository
                         .save(mentorProfile);
 
+        notificationService.notifyUser(
+                user,
+                NotificationType.MENTOR_APPLICATION_APPROVED,
+                "Mentor application approved",
+                "Your PeerForge mentor application is approved. You can now manage your profile and sessions.",
+                "/mentor/dashboard"
+        );
+
         return mentorProfileMapper
                 .toResponse(updatedMentor);
 
+    }
+
+    @Override
+    public MentorProfileResponse rejectMentor(Long mentorId, String reason) {
+        MentorProfile mentor = mentorProfileRepository.findById(mentorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Mentor not found"));
+        if (mentor.getApprovalStatus() != ApprovalStatus.PENDING) {
+            throw new DuplicateResourceException("Only pending mentor applications can be rejected");
+        }
+
+        String normalizedReason = reason == null ? "" : reason.trim();
+        if (normalizedReason.isBlank()) {
+            throw new IllegalArgumentException("A rejection reason is required");
+        }
+        mentor.setApprovalStatus(ApprovalStatus.REJECTED);
+        mentor.setRejectionReason(normalizedReason);
+        MentorProfile saved = mentorProfileRepository.save(mentor);
+
+        notificationService.notifyUser(
+                mentor.getUser(),
+                NotificationType.MENTOR_APPLICATION_REJECTED,
+                "Mentor application needs changes",
+                "Your application was not approved yet: " + normalizedReason
+                        + " You can update your application and reapply.",
+                "/mentor/become"
+        );
+        return mentorProfileMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<MentorApplicationResponse> getMentorApplications(
+            ApprovalStatus status,
+            Pageable pageable
+    ) {
+        return mentorProfileRepository.findByApprovalStatusOrderByCreatedAtDesc(status, pageable)
+                .map(mentor -> new MentorApplicationResponse(
+                        mentor.getId(),
+                        mentor.getUser().getFirstName(),
+                        mentor.getUser().getLastName(),
+                        mentor.getUser().getEmail(),
+                        mentor.getAbout(),
+                        mentor.getHourlyRate(),
+                        mentor.getApprovalStatus(),
+                        mentor.getRejectionReason(),
+                        mentor.getCreatedAt()
+                ));
     }
 
     @Override

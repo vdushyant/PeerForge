@@ -7,6 +7,9 @@ import com.peerforge.mentor.dto.response.AvailabilityResponse;
 import com.peerforge.mentor.dto.response.MentorCardResponse;
 import com.peerforge.mentor.dto.response.MentorDetailResponse;
 import com.peerforge.mentor.dto.response.MentorProfileResponse;
+import com.peerforge.mentor.dto.response.MentorApplicationResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -21,6 +24,13 @@ public interface MentorService {
 
     MentorProfileResponse approveMentor(
             Long mentorId
+    );
+
+    MentorProfileResponse rejectMentor(Long mentorId, String reason);
+
+    Page<MentorApplicationResponse> getMentorApplications(
+            com.peerforge.mentor.entity.ApprovalStatus status,
+            Pageable pageable
     );
 
     MentorProfileResponse getMyMentorProfile(String email);

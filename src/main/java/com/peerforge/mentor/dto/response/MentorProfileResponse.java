@@ -16,6 +16,8 @@ public record MentorProfileResponse(
 
         Integer sessionsCompleted,
 
-        BigDecimal averageRating
+        BigDecimal averageRating,
+
+        String rejectionReason
 ) {
 }

@@ -57,6 +57,9 @@ public class MentorProfile extends BaseEntity {
     @Column(name = "review_count", nullable = false)
     private Integer reviewCount;
 
+    @Column(name = "rejection_reason", length = 500)
+    private String rejectionReason;
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(
             name = "user_id",
