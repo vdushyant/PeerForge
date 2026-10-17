@@ -19,6 +19,7 @@ import com.peerforge.session.repository.SessionRepository;
 import com.peerforge.user.entity.User;
 import com.peerforge.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -129,6 +130,9 @@ public class MentorReviewServiceImpl implements MentorReviewService {
     }
 
     @Override
+    @CacheEvict(cacheNames = {
+            "publicMentorCards", "publicMentorDetails", "landingStats", "featuredReviews"
+    }, allEntries = true)
     public ReviewResponse approveReview(Long reviewId) {
         MentorReview review = getReviewForUpdate(reviewId);
         if (review.getStatus() == ReviewStatus.APPROVED) {

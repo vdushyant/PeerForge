@@ -19,6 +19,7 @@ import com.peerforge.session.service.SessionService;
 import com.peerforge.user.entity.User;
 import com.peerforge.user.repository.UserRepository;
 import lombok.*;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -203,6 +204,7 @@ public class SessionServiceImpl implements SessionService {
     }
 
     @Override
+    @CacheEvict(cacheNames = "landingStats", allEntries = true)
     public SessionResponse completeSession(
             Long sessionId,
             String email

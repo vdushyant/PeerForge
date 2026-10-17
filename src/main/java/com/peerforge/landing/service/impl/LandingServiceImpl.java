@@ -12,6 +12,7 @@ import com.peerforge.session.entity.SessionStatus;
 import com.peerforge.session.repository.SessionRepository;
 import com.peerforge.skill.repository.SkillRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +31,7 @@ public class LandingServiceImpl implements LandingService {
     private final MentorReviewRepository reviewRepository;
 
     @Override
+    @Cacheable(cacheNames = "landingStats", key = "'public'", sync = true)
     public LandingStatsResponse getStats() {
         Double average = reviewRepository.findOverallAverageRating(ReviewStatus.APPROVED);
         BigDecimal averageRating = average == null
@@ -45,6 +47,7 @@ public class LandingServiceImpl implements LandingService {
     }
 
     @Override
+    @Cacheable(cacheNames = "featuredReviews", key = "'public'", sync = true)
     public List<FeaturedReviewResponse> getFeaturedReviews() {
         return reviewRepository
                 .findTop6ByStatusAndCommentIsNotNullOrderByCreatedAtDesc(ReviewStatus.APPROVED)

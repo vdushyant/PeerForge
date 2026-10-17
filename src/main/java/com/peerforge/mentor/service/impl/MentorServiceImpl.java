@@ -28,6 +28,8 @@ import com.peerforge.user.entity.User;
 import com.peerforge.user.entity.UserProfile;
 import com.peerforge.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
@@ -57,6 +59,7 @@ public class MentorServiceImpl
     private final NotificationService notificationService;
 
     @Override
+    @CacheEvict(cacheNames = {"publicMentorCards", "publicMentorDetails", "landingStats"}, allEntries = true)
     public MentorProfileResponse applyForMentorship(
             MentorApplicationRequest request,
             String email
@@ -110,6 +113,7 @@ public class MentorServiceImpl
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "publicMentorCards", key = "'approved'", sync = true)
     public List<MentorCardResponse> getAllMentors() {
 
         return mentorProfileRepository
@@ -165,6 +169,7 @@ public class MentorServiceImpl
     }
 
     @Override
+    @CacheEvict(cacheNames = {"publicMentorCards", "publicMentorDetails", "landingStats"}, allEntries = true)
     public MentorProfileResponse approveMentor(
             Long mentorId
     ) {
@@ -211,6 +216,7 @@ public class MentorServiceImpl
     }
 
     @Override
+    @CacheEvict(cacheNames = {"publicMentorCards", "publicMentorDetails", "landingStats"}, allEntries = true)
     public MentorProfileResponse rejectMentor(Long mentorId, String reason) {
         MentorProfile mentor = mentorProfileRepository.findById(mentorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Mentor not found"));
@@ -278,6 +284,7 @@ public class MentorServiceImpl
     }
 
     @Override
+    @CacheEvict(cacheNames = {"publicMentorCards", "publicMentorDetails"}, allEntries = true)
     public MentorProfileResponse updateMyMentorProfile(
             UpdateMentorProfileRequest request,
             String email
@@ -420,6 +427,7 @@ public class MentorServiceImpl
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "publicMentorDetails", key = "#mentorId", sync = true)
     public MentorDetailResponse getMentorById(Long mentorId) {
 
         MentorProfile mentor = mentorProfileRepository.findById(mentorId).orElseThrow(() ->

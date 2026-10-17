@@ -15,8 +15,18 @@ spring:
   flyway:
     enabled: true
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
 server:
   port: 8080
+
+peerforge:
+  cache:
+    enabled: ${PEERFORGE_CACHE_ENABLED:false}
 
 application:
   security:
