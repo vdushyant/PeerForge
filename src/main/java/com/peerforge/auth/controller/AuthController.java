@@ -1,10 +1,14 @@
 package com.peerforge.auth.controller;
 
 import com.peerforge.auth.dto.request.LoginRequest;
+import com.peerforge.auth.dto.request.AccountTokenRequest;
+import com.peerforge.auth.dto.request.EmailRequest;
 import com.peerforge.auth.dto.request.LogoutRequest;
 import com.peerforge.auth.dto.request.RefreshTokenRequest;
 import com.peerforge.auth.dto.request.RegisterRequest;
+import com.peerforge.auth.dto.request.ResetPasswordRequest;
 import com.peerforge.auth.dto.response.AuthenticationResponse;
+import com.peerforge.auth.dto.response.MessageResponse;
 import com.peerforge.auth.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,8 +24,28 @@ public class AuthController {
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    public AuthenticationResponse register(@Valid @RequestBody RegisterRequest request) {
+    public MessageResponse register(@Valid @RequestBody RegisterRequest request) {
         return authService.register(request);
+    }
+
+    @PostMapping("/verify-email")
+    public MessageResponse verifyEmail(@Valid @RequestBody AccountTokenRequest request) {
+        return authService.verifyEmail(request.token());
+    }
+
+    @PostMapping("/resend-verification")
+    public MessageResponse resendVerification(@Valid @RequestBody EmailRequest request) {
+        return authService.resendVerification(request.email());
+    }
+
+    @PostMapping("/forgot-password")
+    public MessageResponse forgotPassword(@Valid @RequestBody EmailRequest request) {
+        return authService.requestPasswordReset(request.email());
+    }
+
+    @PostMapping("/reset-password")
+    public MessageResponse resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        return authService.resetPassword(request.token(), request.newPassword());
     }
 
     @PostMapping("/login")

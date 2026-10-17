@@ -2,6 +2,7 @@ package com.peerforge.auth.security;
 
 import com.peerforge.role.entity.Role;
 import com.peerforge.user.entity.User;
+import com.peerforge.user.entity.AccountStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -51,6 +52,7 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return user.getAccountStatus() == AccountStatus.ACTIVE
+                && Boolean.TRUE.equals(user.getEmailVerified());
     }
 }

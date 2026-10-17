@@ -5,14 +5,22 @@ import com.peerforge.auth.dto.request.LogoutRequest;
 import com.peerforge.auth.dto.request.RefreshTokenRequest;
 import com.peerforge.auth.dto.request.RegisterRequest;
 import com.peerforge.auth.dto.response.AuthenticationResponse;
+import com.peerforge.auth.dto.response.MessageResponse;
+import com.peerforge.auth.entity.EmailVerificationToken;
+import com.peerforge.auth.entity.PasswordResetToken;
 import com.peerforge.auth.entity.RefreshToken;
 import com.peerforge.auth.mapper.AuthMapper;
+import com.peerforge.auth.repository.EmailVerificationTokenRepository;
+import com.peerforge.auth.repository.PasswordResetTokenRepository;
 import com.peerforge.auth.repository.RefreshTokenRepository;
 import com.peerforge.auth.security.CustomUserDetails;
+import com.peerforge.auth.service.AccountEmailService;
 import com.peerforge.auth.service.AuthService;
 import com.peerforge.auth.service.JwtService;
 import com.peerforge.common.exception.DuplicateResourceException;
 import com.peerforge.common.exception.InvalidRefreshTokenException;
+import com.peerforge.common.exception.InvalidAccountTokenException;
+import com.peerforge.common.exception.MailDeliveryUnavailableException;
 import com.peerforge.common.exception.ResourceNotFoundException;
 import com.peerforge.role.entity.Role;
 import com.peerforge.role.repository.RoleRepository;
@@ -27,11 +35,18 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import lombok.extern.slf4j.Slf4j;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthServiceImpl implements AuthService {
 
     private final AuthenticationManager authenticationManager;
@@ -39,6 +54,9 @@ public class AuthServiceImpl implements AuthService {
     private final UserProfileService userProfileService;
     private final RoleRepository roleRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final EmailVerificationTokenRepository emailVerificationTokenRepository;
+    private final AccountEmailService accountEmailService;
 
     private final PasswordEncoder passwordEncoder;
 
@@ -47,7 +65,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public AuthenticationResponse register(RegisterRequest request) {
+    public MessageResponse register(RegisterRequest request) {
 
         if (userRepository.existsByEmail(request.email())) {
             throw new DuplicateResourceException("Email already registered");
@@ -58,6 +76,7 @@ public class AuthServiceImpl implements AuthService {
         user.setPassword(passwordEncoder.encode(request.password()));
 
         user.setAccountStatus(AccountStatus.ACTIVE);
+        user.setEmailVerified(false);
 
         Role clientRole = roleRepository
                 .findByName("CLIENT")
@@ -72,8 +91,116 @@ public class AuthServiceImpl implements AuthService {
         User savedUser = userRepository.save(user);
 
         userProfileService.createInitialProfile(savedUser);
+        sendVerification(savedUser);
+        return new MessageResponse("Check your email for a link to verify your PeerForge account.");
+    }
 
-        return createAuthenticationResponse(savedUser);
+    @Override
+    @Transactional
+    public MessageResponse verifyEmail(String rawToken) {
+        EmailVerificationToken token = emailVerificationTokenRepository
+                .findByTokenHashAndUsedFalse(hashToken(rawToken))
+                .orElseThrow(() -> new InvalidAccountTokenException("This verification link is invalid or has expired"));
+        if (token.getExpiryDate().isBefore(LocalDateTime.now())) {
+            throw new InvalidAccountTokenException("This verification link is invalid or has expired");
+        }
+
+        token.setUsed(true);
+        token.getUser().setEmailVerified(true);
+        userRepository.save(token.getUser());
+        emailVerificationTokenRepository.save(token);
+        return new MessageResponse("Email verified. You can now sign in.");
+    }
+
+    @Override
+    @Transactional
+    public MessageResponse resendVerification(String email) {
+        userRepository.findByEmail(email).filter(user -> !Boolean.TRUE.equals(user.getEmailVerified()))
+                .ifPresent(user -> {
+                    try {
+                        sendVerification(user);
+                    } catch (MailDeliveryUnavailableException exception) {
+                        log.warn("Verification email could not be delivered; SMTP is unavailable");
+                    }
+                });
+        return new MessageResponse("If the account needs verification, a new link will be sent to that address.");
+    }
+
+    @Override
+    @Transactional
+    public MessageResponse requestPasswordReset(String email) {
+        userRepository.findByEmail(email)
+                .filter(user -> Boolean.TRUE.equals(user.getEmailVerified()))
+                .ifPresent(user -> {
+                    try {
+                        sendPasswordReset(user);
+                    } catch (MailDeliveryUnavailableException exception) {
+                        log.warn("Password reset email could not be delivered; SMTP is unavailable");
+                    }
+                });
+        return new MessageResponse("If a verified account exists for that address, a password reset link will be sent.");
+    }
+
+    @Override
+    @Transactional
+    public MessageResponse resetPassword(String rawToken, String newPassword) {
+        PasswordResetToken token = passwordResetTokenRepository
+                .findByTokenAndUsedFalse(hashToken(rawToken))
+                .orElseThrow(() -> new InvalidAccountTokenException("This password reset link is invalid or has expired"));
+        if (token.getExpiryDate().isBefore(LocalDateTime.now())) {
+            throw new InvalidAccountTokenException("This password reset link is invalid or has expired");
+        }
+
+        var user = token.getUser();
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        token.setUsed(true);
+        passwordResetTokenRepository.save(token);
+        refreshTokenRepository.deleteByUser(user);
+        passwordResetTokenRepository.deleteAllByUser_Id(user.getId());
+        return new MessageResponse("Password updated. Sign in with your new password.");
+    }
+
+    private void sendVerification(User user) {
+        emailVerificationTokenRepository.deleteAllByUser_Id(user.getId());
+        String rawToken = generateToken();
+        emailVerificationTokenRepository.save(EmailVerificationToken.builder()
+                .user(user)
+                .tokenHash(hashToken(rawToken))
+                .expiryDate(LocalDateTime.now().plusHours(24))
+                .used(false)
+                .createdAt(LocalDateTime.now())
+                .build());
+        accountEmailService.sendVerificationEmail(user.getEmail(), user.getFirstName(), rawToken);
+    }
+
+    private void sendPasswordReset(com.peerforge.user.entity.User user) {
+        passwordResetTokenRepository.deleteAllByUser_Id(user.getId());
+        String rawToken = generateToken();
+        passwordResetTokenRepository.save(PasswordResetToken.builder()
+                .user(user)
+                .token(hashToken(rawToken))
+                .expiryDate(LocalDateTime.now().plusMinutes(20))
+                .used(false)
+                .createdAt(LocalDateTime.now())
+                .build());
+        accountEmailService.sendPasswordResetEmail(user.getEmail(), user.getFirstName(), rawToken);
+    }
+
+    private String generateToken() {
+        byte[] bytes = new byte[32];
+        new SecureRandom().nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private String hashToken(String rawToken) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(rawToken.getBytes(StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is not available", exception);
+        }
     }
 
     @Override
