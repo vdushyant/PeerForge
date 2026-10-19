@@ -38,6 +38,12 @@ public class Payment extends BaseEntity {
     )
     private BigDecimal amount;
 
+    @Column(name = "mentor_amount", nullable = false, precision = 10, scale = 2)
+    private BigDecimal mentorAmount;
+
+    @Column(name = "client_fee", nullable = false, precision = 10, scale = 2)
+    private BigDecimal clientFee;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private PaymentStatus status;

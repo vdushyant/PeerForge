@@ -35,6 +35,8 @@ server:
 peerforge:
   cache:
     enabled: ${PEERFORGE_CACHE_ENABLED:false}
+  payments:
+    client-fee-percent: ${PEERFORGE_CLIENT_FEE_PERCENT:0}
   email:
     from: ${MAIL_FROM:}
     base-url: ${APP_BASE_URL:http://localhost:5173}

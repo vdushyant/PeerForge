@@ -33,7 +33,7 @@ public class RazorpayGateway implements PaymentGateway {
                 "amount",
                 amount.multiply(
                         BigDecimal.valueOf(100)
-                ).intValue()
+                ).setScale(0, java.math.RoundingMode.HALF_UP).intValueExact()
         );
 
         options.put(

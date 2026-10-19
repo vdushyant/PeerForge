@@ -8,6 +8,7 @@ import com.peerforge.mentor.entity.ApprovalStatus;
 import com.peerforge.mentor.entity.MentorProfile;
 import com.peerforge.mentor.repository.MentorProfileRepository;
 import com.peerforge.payment.entity.PaymentStatus;
+import com.peerforge.payment.repository.MentorPayoutRepository;
 import com.peerforge.payment.repository.PaymentRepository;
 import com.peerforge.review.entity.ReviewStatus;
 import com.peerforge.review.repository.MentorReviewRepository;
@@ -32,6 +33,7 @@ public class DashboardServiceImpl implements DashboardService {
     private final SessionRepository sessionRepository;
     private final PaymentRepository paymentRepository;
     private final MentorReviewRepository reviewRepository;
+    private final MentorPayoutRepository mentorPayoutRepository;
 
     @Override
     public MentorDashboardResponse getMentorDashboard(String email) {
@@ -50,6 +52,8 @@ public class DashboardServiceImpl implements DashboardService {
                 mentor.getId(), SessionStatus.CONFIRMED, LocalDateTime.now());
         BigDecimal grossPayments = paymentRepository.sumAmountByMentorAndStatus(
                 mentor.getId(), PaymentStatus.SUCCESS);
+        BigDecimal pendingPayouts = mentorPayoutRepository.sumOutstandingAmountByMentorId(
+                mentor.getId());
 
         return new MentorDashboardResponse(
                 completed,
@@ -58,7 +62,8 @@ public class DashboardServiceImpl implements DashboardService {
                 upcoming,
                 reviewRepository.countByMentor_IdAndStatus(mentor.getId(), ReviewStatus.APPROVED),
                 mentor.getAverageRating() == null ? BigDecimal.ZERO : mentor.getAverageRating(),
-                zeroIfNull(grossPayments)
+                zeroIfNull(grossPayments),
+                zeroIfNull(pendingPayouts)
         );
     }
 

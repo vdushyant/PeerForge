@@ -8,13 +8,21 @@ import com.peerforge.mentor.repository.MentorAvailabilityRepository;
 import com.peerforge.mentor.repository.MentorProfileRepository;
 import com.peerforge.notification.entity.NotificationType;
 import com.peerforge.notification.service.NotificationService;
+import com.peerforge.payment.entity.MentorPayout;
+import com.peerforge.payment.entity.MentorPayoutStatus;
+import com.peerforge.payment.entity.PaymentStatus;
+import com.peerforge.payment.repository.MentorPayoutRepository;
 import com.peerforge.role.entity.Role;
 import com.peerforge.session.dto.request.BookSessionRequest;
+import com.peerforge.session.dto.request.SendSessionMessageRequest;
+import com.peerforge.session.dto.response.SessionMessageResponse;
 import com.peerforge.session.dto.response.SessionResponse;
 import com.peerforge.session.entity.Session;
 import com.peerforge.session.entity.SessionStatus;
 import com.peerforge.session.mapper.SessionMapper;
 import com.peerforge.session.repository.SessionRepository;
+import com.peerforge.session.repository.SessionMessageRepository;
+import com.peerforge.session.entity.SessionMessage;
 import com.peerforge.session.service.SessionService;
 import com.peerforge.user.entity.User;
 import com.peerforge.user.repository.UserRepository;
@@ -27,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.DayOfWeek;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Collections;
 
 @Service
 @RequiredArgsConstructor
@@ -38,6 +47,8 @@ public class SessionServiceImpl implements SessionService {
     private final MentorAvailabilityRepository mentorAvailabilityRepository;
     private final SessionMapper sessionMapper;
     private final NotificationService notificationService;
+    private final SessionMessageRepository sessionMessageRepository;
+    private final MentorPayoutRepository mentorPayoutRepository;
 
     private static final DateTimeFormatter NOTIFICATION_DATE =
             DateTimeFormatter.ofPattern("EEE, d MMM 'at' HH:mm");
@@ -216,6 +227,14 @@ public class SessionServiceImpl implements SessionService {
 
         session.setStatus(SessionStatus.COMPLETED);
         Session saved = sessionRepository.save(session);
+        if (mentorPayoutRepository.findByPayment_Id(session.getPayment().getId()).isEmpty()) {
+            mentorPayoutRepository.save(MentorPayout.builder()
+                    .payment(session.getPayment())
+                    .mentor(session.getMentor())
+                    .amount(session.getPayment().getMentorAmount())
+                    .status(MentorPayoutStatus.PENDING_ROUTE_SETUP)
+                    .build());
+        }
         notificationService.notifyUser(
                 session.getClient(),
                 NotificationType.SESSION_COMPLETED,
@@ -271,6 +290,96 @@ public class SessionServiceImpl implements SessionService {
         validateSessionAccess(session,currentUser);
 
         return sessionMapper.toResponse(session);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SessionMessageResponse> getMessages(Long sessionId, String email) {
+        User currentUser = getCurrentUser(email);
+        Session session = getSession(sessionId);
+        validateConversationAccess(session, currentUser);
+
+        List<SessionMessage> messages = sessionMessageRepository
+                .findTop100BySession_IdOrderByCreatedAtDescIdDesc(sessionId);
+        Collections.reverse(messages);
+        return messages.stream().map(message -> toMessageResponse(message, currentUser)).toList();
+    }
+
+    @Override
+    public SessionMessageResponse sendMessage(
+            Long sessionId,
+            SendSessionMessageRequest request,
+            String email
+    ) {
+        User currentUser = getCurrentUser(email);
+        Session session = getSession(sessionId);
+        validateConversationAccess(session, currentUser);
+
+        String text = request.message().trim();
+        if (text.isEmpty()) {
+            throw new BookingConflictException("Message cannot be blank");
+        }
+
+        SessionMessage saved = sessionMessageRepository.save(SessionMessage.builder()
+                .session(session)
+                .sender(currentUser)
+                .message(text)
+                .build());
+        User recipient = session.getClient().getId().equals(currentUser.getId())
+                ? session.getMentor().getUser()
+                : session.getClient();
+        notificationService.notifyUser(
+                recipient,
+                NotificationType.SESSION_MESSAGE,
+                "New session message",
+                currentUser.getFirstName() + " sent you a message about your session.",
+                recipient.getId().equals(session.getMentor().getUser().getId())
+                        ? "/mentor/sessions"
+                        : "/sessions"
+        );
+        return toMessageResponse(saved, currentUser);
+    }
+
+    @Override
+    public SessionResponse updateMeetingLink(Long sessionId, String meetingLink, String email) {
+        User currentUser = getCurrentUser(email);
+        Session session = getSession(sessionId);
+        if (!session.getMentor().getUser().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("Only the session mentor can update its meeting link");
+        }
+        if (session.getStatus() != SessionStatus.CONFIRMED
+                || session.getPayment() == null
+                || session.getPayment().getStatus() != PaymentStatus.SUCCESS) {
+            throw new InvalidSessionStateException("A meeting link can only be set for a paid, confirmed session");
+        }
+        session.setMeetingLink(meetingLink.trim());
+        return sessionMapper.toResponse(sessionRepository.save(session));
+    }
+
+    private SessionMessageResponse toMessageResponse(SessionMessage message, User currentUser) {
+        User sender = message.getSender();
+        return new SessionMessageResponse(
+                message.getId(),
+                sender.getFirstName() + " " + sender.getLastName(),
+                message.getMessage(),
+                message.getCreatedAt(),
+                sender.getId().equals(currentUser.getId())
+        );
+    }
+
+    private void validateConversationAccess(Session session, User currentUser) {
+        boolean isMentor = session.getMentor().getUser().getId().equals(currentUser.getId());
+        boolean isClient = session.getClient().getId().equals(currentUser.getId());
+        if (!isMentor && !isClient) {
+            throw new AccessDeniedException("Only the session mentor and client can access its conversation");
+        }
+        boolean isAvailableStatus = session.getStatus() == SessionStatus.CONFIRMED
+                || session.getStatus() == SessionStatus.COMPLETED;
+        boolean paymentSuccessful = session.getPayment() != null
+                && session.getPayment().getStatus() == PaymentStatus.SUCCESS;
+        if (!isAvailableStatus || !paymentSuccessful) {
+            throw new InvalidSessionStateException("Messaging is available only for paid, confirmed sessions");
+        }
     }
 
     // Lookup Helpers
@@ -335,6 +444,9 @@ public class SessionServiceImpl implements SessionService {
                     "Only pending sessions can be confirmed"
             );
         }
+        if (session.getPayment() == null || session.getPayment().getStatus() != PaymentStatus.SUCCESS) {
+            throw new InvalidSessionStateException("A session can only be confirmed after successful payment");
+        }
     }
 
     private void validateCompleteTransition(Session session) {
@@ -342,6 +454,9 @@ public class SessionServiceImpl implements SessionService {
             throw new InvalidSessionStateException(
                     "Only confirmed sessions can be completed"
             );
+        }
+        if (session.getPayment() == null || session.getPayment().getStatus() != PaymentStatus.SUCCESS) {
+            throw new InvalidSessionStateException("Only paid sessions can be completed");
         }
     }
 

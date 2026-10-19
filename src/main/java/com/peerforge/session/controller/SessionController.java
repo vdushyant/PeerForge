@@ -2,6 +2,9 @@ package com.peerforge.session.controller;
 
 import com.peerforge.session.dto.request.BookSessionRequest;
 import com.peerforge.session.dto.response.SessionResponse;
+import com.peerforge.session.dto.response.SessionMessageResponse;
+import com.peerforge.session.dto.request.SendSessionMessageRequest;
+import com.peerforge.session.dto.request.UpdateMeetingLinkRequest;
 import com.peerforge.session.service.SessionService;
 import jakarta.validation.Valid;
 import lombok.*;
@@ -78,6 +81,33 @@ public class SessionController {
             @AuthenticationPrincipal
             UserDetails userDetails) {
         return sessionService.getSessionById(id, userDetails.getUsername());
+    }
+
+    @GetMapping("/{id}/messages")
+    public List<SessionMessageResponse> getMessages(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        return sessionService.getMessages(id, userDetails.getUsername());
+    }
+
+    @PostMapping("/{id}/messages")
+    @ResponseStatus(HttpStatus.CREATED)
+    public SessionMessageResponse sendMessage(
+            @PathVariable Long id,
+            @Valid @RequestBody SendSessionMessageRequest request,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        return sessionService.sendMessage(id, request, userDetails.getUsername());
+    }
+
+    @PutMapping("/{id}/meeting-link")
+    public SessionResponse updateMeetingLink(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateMeetingLinkRequest request,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        return sessionService.updateMeetingLink(id, request.meetingLink(), userDetails.getUsername());
     }
 
 }

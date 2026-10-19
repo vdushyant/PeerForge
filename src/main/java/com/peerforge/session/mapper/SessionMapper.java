@@ -2,6 +2,7 @@ package com.peerforge.session.mapper;
 
 import com.peerforge.session.dto.response.SessionResponse;
 import com.peerforge.session.entity.Session;
+import com.peerforge.payment.entity.PaymentStatus;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -33,15 +34,8 @@ public interface SessionMapper {
                             "session.getClient().getLastName())"
     )
 
-    @Mapping(
-            target = "mentorEmail",
-            source = "mentor.user.email"
-    )
-
-    @Mapping(
-            target = "clientEmail",
-            source = "client.email"
-    )
+    @Mapping(target = "meetingLink", expression = "java(session.getPayment() != null && session.getPayment().getStatus() == PaymentStatus.SUCCESS ? session.getMeetingLink() : null)")
+    @Mapping(target = "paymentStatus", expression = "java(session.getPayment() == null ? null : session.getPayment().getStatus())")
 
     SessionResponse toResponse(
             Session session

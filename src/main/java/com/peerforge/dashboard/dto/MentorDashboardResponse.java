@@ -9,5 +9,6 @@ public record MentorDashboardResponse(
         long upcomingSessions,
         long approvedReviewCount,
         BigDecimal averageRating,
-        BigDecimal grossSuccessfulPayments
+        BigDecimal grossSuccessfulPayments,
+        BigDecimal pendingPayouts
 ) { }

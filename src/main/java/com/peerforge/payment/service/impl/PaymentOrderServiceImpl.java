@@ -40,6 +40,9 @@ public class PaymentOrderServiceImpl implements PaymentOrderService {
     @Value("${razorpay.key-id}")
     private String razorpayKey;
 
+    @Value("${peerforge.payments.client-fee-percent:0}")
+    private BigDecimal clientFeePercent;
+
     @Override
     @Transactional
     public CreateOrderResponse createOrder(
@@ -59,6 +62,10 @@ public class PaymentOrderServiceImpl implements PaymentOrderService {
             throw new InvalidSessionStateException(
                     "Payment can only be created for pending sessions"
             );
+        }
+        if (clientFeePercent.signum() < 0
+                || clientFeePercent.compareTo(BigDecimal.valueOf(100)) > 0) {
+            throw new IllegalStateException("PeerForge client fee percentage must be between 0 and 100");
         }
 
         /*
@@ -82,6 +89,8 @@ public class PaymentOrderServiceImpl implements PaymentOrderService {
                         payment.getProviderOrderId(),
                         razorpayKey,
                         payment.getAmount(),
+                        payment.getMentorAmount(),
+                        payment.getClientFee(),
                         "INR"
                 );
             }
@@ -110,8 +119,13 @@ public class PaymentOrderServiceImpl implements PaymentOrderService {
                                 RoundingMode.HALF_UP
                         );
 
-        BigDecimal amount =
-                hourlyRate.multiply(durationHours);
+        BigDecimal mentorAmount =
+                hourlyRate.multiply(durationHours).setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal clientFee = mentorAmount
+                .multiply(clientFeePercent)
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        BigDecimal amount = mentorAmount.add(clientFee);
 
         GatewayOrder gatewayOrder =
                 paymentGateway.createOrder(
@@ -126,6 +140,8 @@ public class PaymentOrderServiceImpl implements PaymentOrderService {
 
             payment.setStatus(PaymentStatus.PENDING);
             payment.setAmount(amount);
+            payment.setMentorAmount(mentorAmount);
+            payment.setClientFee(clientFee);
             payment.setProviderOrderId(
                     gatewayOrder.orderId()
             );
@@ -135,6 +151,8 @@ public class PaymentOrderServiceImpl implements PaymentOrderService {
             payment = Payment.builder()
                     .session(session)
                     .amount(amount)
+                    .mentorAmount(mentorAmount)
+                    .clientFee(clientFee)
                     .status(PaymentStatus.PENDING)
                     .providerOrderId(
                             gatewayOrder.orderId()
@@ -151,6 +169,8 @@ public class PaymentOrderServiceImpl implements PaymentOrderService {
                 saved.getProviderOrderId(),
                 razorpayKey,
                 saved.getAmount(),
+                saved.getMentorAmount(),
+                saved.getClientFee(),
                 gatewayOrder.currency()
         );
     }

@@ -12,6 +12,10 @@ public record PaymentResponse(
 
         BigDecimal amount,
 
+        BigDecimal mentorAmount,
+
+        BigDecimal clientFee,
+
         PaymentStatus status,
 
         String providerOrderId,

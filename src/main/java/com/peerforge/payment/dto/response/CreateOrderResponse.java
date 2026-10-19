@@ -14,6 +14,10 @@ public record CreateOrderResponse(
 
         BigDecimal amount,
 
+        BigDecimal mentorAmount,
+
+        BigDecimal clientFee,
+
         String currency
 
 ) {
