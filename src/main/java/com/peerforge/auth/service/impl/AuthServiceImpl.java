@@ -234,7 +234,7 @@ public class AuthServiceImpl implements AuthService {
                 refreshTokenRepository
                         .findByToken(request.refreshToken())
                         .orElseThrow(() ->
-                                new InvalidRefreshTokenException("Invalid refresh token"));;
+                                new InvalidRefreshTokenException("Invalid refresh token"));
 
         if (refreshToken.getRevoked()) {
             throw new InvalidRefreshTokenException("Refresh token has been revoked");

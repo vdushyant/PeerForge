@@ -65,6 +65,7 @@ public class User extends BaseEntity {
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "skill_id")
     )
+    @Builder.Default
     private Set<Skill> skills = new HashSet<>();
 
     @OneToOne(

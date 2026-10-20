@@ -34,6 +34,7 @@ import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.HashSet;
 import java.util.List;
 
 @Component
@@ -160,6 +161,7 @@ public class DemoDataSeeder implements ApplicationRunner {
                 .email(email)
                 .password(passwordEncoder.encode(demoPassword))
                 .accountStatus(AccountStatus.ACTIVE)
+                .skills(new HashSet<>())
                 .build();
         user.getRoles().addAll(List.of(roles));
         return userRepository.save(user);
