@@ -42,4 +42,12 @@ public class PaymentOrderController {
                 request
         );
     }
+
+    @GetMapping("/session/{sessionId}/status")
+    public PaymentResponse paymentStatus(
+            @PathVariable Long sessionId,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        return paymentOrderService.getSessionPaymentStatus(sessionId, userDetails.getUsername());
+    }
 }

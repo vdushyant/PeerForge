@@ -19,6 +19,8 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             String providerOrderId
     );
 
+    Optional<Payment> findByProviderQrCodeId(String providerQrCodeId);
+
     @Query("select sum(p.amount) from Payment p where p.session.mentor.id = :mentorId and p.status = :status")
     BigDecimal sumAmountByMentorAndStatus(
             @Param("mentorId") Long mentorId,

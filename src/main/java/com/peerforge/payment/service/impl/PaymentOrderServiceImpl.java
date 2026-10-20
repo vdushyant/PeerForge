@@ -21,11 +21,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.peerforge.payment.gateway.dto.GatewayOrder;
+import com.peerforge.payment.gateway.dto.GatewayQrCode;
+import com.peerforge.payment.mapper.PaymentMapper;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
+import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
@@ -36,9 +38,7 @@ public class PaymentOrderServiceImpl implements PaymentOrderService {
     private final PaymentRepository paymentRepository;
     private final PaymentLifecycleService paymentLifecycleService;
     private final PaymentGateway paymentGateway;
-
-    @Value("${razorpay.key-id}")
-    private String razorpayKey;
+    private final PaymentMapper paymentMapper;
 
     @Value("${peerforge.payments.client-fee-percent:0}")
     private BigDecimal clientFeePercent;
@@ -68,34 +68,21 @@ public class PaymentOrderServiceImpl implements PaymentOrderService {
             throw new IllegalStateException("PeerForge client fee percentage must be between 0 and 100");
         }
 
-        /*
-         * If a payment already exists for this session:
-         *
-         * PENDING  -> reuse the existing Razorpay order
-         * FAILED   -> create a new Razorpay order
-         * SUCCESS  -> should not happen because session is CONFIRMED
-         * REFUNDED -> should not happen because session is CANCELLED
-         */
         var existingPayment =
                 paymentRepository.findBySessionId(sessionId);
 
         if (existingPayment.isPresent()) {
             Payment payment = existingPayment.get();
 
-            if (payment.getStatus() == PaymentStatus.PENDING) {
-                return new CreateOrderResponse(
-                        payment.getId(),
-                        session.getId(),
-                        payment.getProviderOrderId(),
-                        razorpayKey,
-                        payment.getAmount(),
-                        payment.getMentorAmount(),
-                        payment.getClientFee(),
-                        "INR"
-                );
+            if (payment.getStatus() == PaymentStatus.PENDING
+                    && payment.getProviderQrCodeId() != null
+                    && payment.getProviderQrCodeExpiresAt() != null
+                    && payment.getProviderQrCodeExpiresAt().isAfter(Instant.now())) {
+                return toQrResponse(payment, "INR");
             }
 
-            if (payment.getStatus() != PaymentStatus.FAILED) {
+            if (payment.getStatus() != PaymentStatus.FAILED
+                    && payment.getStatus() != PaymentStatus.PENDING) {
                 throw new InvalidPaymentStateException(
                         "Payment cannot be retried"
                 );
@@ -127,12 +114,6 @@ public class PaymentOrderServiceImpl implements PaymentOrderService {
                 .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
         BigDecimal amount = mentorAmount.add(clientFee);
 
-        GatewayOrder gatewayOrder =
-                paymentGateway.createOrder(
-                        amount,
-                        "session_" + sessionId
-                );
-
         Payment payment;
 
         if (existingPayment.isPresent()) {
@@ -142,11 +123,12 @@ public class PaymentOrderServiceImpl implements PaymentOrderService {
             payment.setAmount(amount);
             payment.setMentorAmount(mentorAmount);
             payment.setClientFee(clientFee);
-            payment.setProviderOrderId(
-                    gatewayOrder.orderId()
-            );
+            payment.setProviderOrderId(null);
             payment.setProviderPaymentId(null);
             payment.setProviderSignature(null);
+            payment.setProviderQrCodeId(null);
+            payment.setProviderQrCodeImageUrl(null);
+            payment.setProviderQrCodeExpiresAt(null);
         } else {
             payment = Payment.builder()
                     .session(session)
@@ -154,25 +136,20 @@ public class PaymentOrderServiceImpl implements PaymentOrderService {
                     .mentorAmount(mentorAmount)
                     .clientFee(clientFee)
                     .status(PaymentStatus.PENDING)
-                    .providerOrderId(
-                            gatewayOrder.orderId()
-                    )
                     .build();
         }
 
-        Payment saved =
-                paymentRepository.save(payment);
-
-        return new CreateOrderResponse(
+        Payment saved = paymentRepository.saveAndFlush(payment);
+        GatewayQrCode qrCode = paymentGateway.createQrCode(
+                amount,
+                "session_" + sessionId,
                 saved.getId(),
-                session.getId(),
-                saved.getProviderOrderId(),
-                razorpayKey,
-                saved.getAmount(),
-                saved.getMentorAmount(),
-                saved.getClientFee(),
-                gatewayOrder.currency()
+                sessionId
         );
+        saved.setProviderQrCodeId(qrCode.qrCodeId());
+        saved.setProviderQrCodeImageUrl(qrCode.imageUrl());
+        saved.setProviderQrCodeExpiresAt(qrCode.expiresAt());
+        return toQrResponse(paymentRepository.save(saved), "INR");
     }
 
     @Override
@@ -219,6 +196,28 @@ public class PaymentOrderServiceImpl implements PaymentOrderService {
                 payment.getId()
         );
 
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PaymentResponse getSessionPaymentStatus(Long sessionId, String email) {
+        User currentUser = getCurrentUser(email);
+        Session session = getSession(sessionId);
+        if (!session.getClient().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("Only the booking client can view payment status");
+        }
+        Payment payment = paymentRepository.findBySessionId(sessionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
+        return paymentMapper.toResponse(payment);
+    }
+
+    private CreateOrderResponse toQrResponse(Payment payment, String currency) {
+        return new CreateOrderResponse(
+                payment.getId(), payment.getSession().getId(), null, null,
+                payment.getAmount(), payment.getMentorAmount(), payment.getClientFee(), currency,
+                payment.getProviderQrCodeId(), payment.getProviderQrCodeImageUrl(),
+                payment.getProviderQrCodeExpiresAt()
+        );
     }
 
     // Lookup Helpers

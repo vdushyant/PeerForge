@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 
 @Entity
 @Table(name = "payments")
@@ -56,5 +57,14 @@ public class Payment extends BaseEntity {
 
     @Column(name = "provider_signature")
     private String providerSignature;
+
+    @Column(name = "provider_qr_code_id", unique = true)
+    private String providerQrCodeId;
+
+    @Column(name = "provider_qr_code_image_url", length = 1000)
+    private String providerQrCodeImageUrl;
+
+    @Column(name = "provider_qr_code_expires_at")
+    private Instant providerQrCodeExpiresAt;
 
 }

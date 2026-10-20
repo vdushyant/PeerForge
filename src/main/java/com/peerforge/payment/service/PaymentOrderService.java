@@ -15,5 +15,7 @@ public interface PaymentOrderService {
             VerifyPaymentRequest request
     );
 
+    PaymentResponse getSessionPaymentStatus(Long sessionId, String email);
+
 
 }

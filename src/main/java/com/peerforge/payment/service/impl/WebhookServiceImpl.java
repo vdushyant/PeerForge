@@ -8,6 +8,7 @@ import com.peerforge.session.entity.Session;
 import com.peerforge.session.entity.SessionStatus;
 import com.peerforge.payment.repository.PaymentRepository;
 import com.peerforge.payment.service.WebhookService;
+import com.peerforge.payment.service.PaymentLifecycleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ public class WebhookServiceImpl implements WebhookService {
 
     private final PaymentRepository paymentRepository;
     private final ObjectMapper objectMapper;
+    private final PaymentLifecycleService paymentLifecycleService;
 
     @Value("${razorpay.webhook-secret}")
     private String webhookSecret;
@@ -37,6 +39,11 @@ public class WebhookServiceImpl implements WebhookService {
         try {
             JsonNode root = objectMapper.readTree(payload);
             String event = root.path("event").asText();
+
+            if ("qr_code.credited".equals(event)) {
+                handleQrCodeCredited(root.path("payload"));
+                return;
+            }
 
             JsonNode paymentEntity = root.path("payload").path("payment").path("entity");
             String razorpayOrderId = paymentEntity.path("order_id").asText();
@@ -78,6 +85,29 @@ public class WebhookServiceImpl implements WebhookService {
                     exception
             );
         }
+    }
+
+    private void handleQrCodeCredited(JsonNode payload) {
+        JsonNode qrEntity = payload.path("qr_code").path("entity");
+        JsonNode paymentEntity = payload.path("payment").path("entity");
+        String qrCodeId = qrEntity.path("id").asText("");
+        String razorpayPaymentId = paymentEntity.path("id").asText("");
+        if (qrCodeId.isBlank() || razorpayPaymentId.isBlank()) return;
+
+        Payment payment = paymentRepository.findByProviderQrCodeId(qrCodeId).orElse(null);
+        if (payment == null || payment.getStatus() != PaymentStatus.PENDING) return;
+        if (!"captured".equalsIgnoreCase(paymentEntity.path("status").asText())
+                || !paymentEntity.path("captured").asBoolean(false)
+                || !"INR".equalsIgnoreCase(paymentEntity.path("currency").asText())
+                || paymentEntity.path("amount").asLong(-1) != payment.getAmount()
+                        .movePointRight(2).longValueExact()) {
+            return;
+        }
+        if (payment.getSession().getStatus() == SessionStatus.CANCELLED) return;
+
+        payment.setProviderPaymentId(razorpayPaymentId);
+        paymentRepository.save(payment);
+        paymentLifecycleService.completePayment(payment.getId());
     }
 
     private void handlePaymentCaptured(
