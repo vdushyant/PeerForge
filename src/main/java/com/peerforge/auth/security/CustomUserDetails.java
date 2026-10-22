@@ -14,6 +14,7 @@ import java.util.Collection;
 public class CustomUserDetails implements UserDetails {
 
     private final User user;
+    private final boolean emailVerificationRequired;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -53,6 +54,6 @@ public class CustomUserDetails implements UserDetails {
     @Override
     public boolean isEnabled() {
         return user.getAccountStatus() == AccountStatus.ACTIVE
-                && Boolean.TRUE.equals(user.getEmailVerified());
+                && (!emailVerificationRequired || Boolean.TRUE.equals(user.getEmailVerified()));
     }
 }

@@ -20,19 +20,12 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
-  mail:
-    host: ${MAIL_HOST:}
-    port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:}
-    password: ${MAIL_PASSWORD:}
-    properties:
-      mail.smtp.auth: ${MAIL_SMTP_AUTH:true}
-      mail.smtp.starttls.enable: ${MAIL_SMTP_STARTTLS:true}
-
 server:
   port: 8080
 
 peerforge:
+  auth:
+    email-enabled: ${PEERFORGE_EMAIL_ENABLED:false}
   cache:
     enabled: ${PEERFORGE_CACHE_ENABLED:false}
   payments:

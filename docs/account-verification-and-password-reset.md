@@ -1,19 +1,33 @@
 # Email verification and password recovery
 
-## User flow
+## Current mode
 
-- New registrations are saved as unverified and receive a 24-hour verification link. They cannot sign in until the link is redeemed.
-- The login screen's “Forgot Password?” link opens the password recovery form. A verified account receives a 20-minute, single-use reset link.
-- Password-reset and verification tokens are generated randomly; only SHA-256 hashes are stored in PostgreSQL.
-- Password reset replaces the password hash and revokes the user's refresh tokens.
-- Forgot-password and resend-verification requests return generic messages so the API does not reveal whether an address has an account.
-- Migration V19 marks existing accounts as verified so current users are not locked out.
+Email verification and password reset are temporarily disabled by default. New registrations are marked verified and can sign in immediately. Password reset is unavailable until email delivery is enabled; users who lose access need to contact support.
 
-Email verification confirms control of an address when the link is used. It does not prove the address will remain valid, and some disposable inboxes can receive verification mail. Domain blocking and request throttling can be added as anti-abuse measures if needed.
+The toggle is `PEERFORGE_EMAIL_ENABLED` and defaults to `false`. With it disabled, the application does not require SMTP configuration, does not send verification emails, and the forgot-password/resend-verification requests do not send messages.
 
-## Configure SMTP
+## Re-enable email flows later
 
-The application uses Spring Mail with environment variables. No credentials are stored in the repository:
+Set `PEERFORGE_EMAIL_ENABLED=true`, restore this Spring Mail configuration, and set the environment variables below in the local run configuration and production service environment:
+
+```yaml
+spring:
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail.smtp.auth: ${MAIL_SMTP_AUTH:true}
+      mail.smtp.starttls.enable: ${MAIL_SMTP_STARTTLS:true}
+
+peerforge:
+  email:
+    from: ${MAIL_FROM:}
+    base-url: ${APP_BASE_URL:http://localhost:5173}
+```
+
+Required settings:
 
 ```text
 MAIL_HOST=<SMTP host>
@@ -23,10 +37,10 @@ MAIL_PASSWORD=<SMTP password>
 MAIL_FROM=<verified sender address, if different from username>
 MAIL_SMTP_AUTH=true
 MAIL_SMTP_STARTTLS=true
-APP_BASE_URL=https://d1mxko2b62xlbg.cloudfront.net
+APP_BASE_URL=<frontend URL>
 ```
 
-For local development, set `APP_BASE_URL=http://localhost:5173`. Configure the variables in IntelliJ's run configuration locally and in the backend service environment in production. Registration returns a service-unavailable response when SMTP is not configured, instead of creating an account that cannot be verified.
+Never commit real mail credentials. Email verification links expire after 24 hours. Password-reset links expire after 20 minutes, are single-use, and the stored token is hashed. A successful password reset revokes the user's refresh tokens.
 
 ## Endpoints
 

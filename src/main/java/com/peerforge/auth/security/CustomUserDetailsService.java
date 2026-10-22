@@ -7,10 +7,14 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 
 @Service
 @RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
+
+    @Value("${peerforge.auth.email-enabled:false}")
+    private boolean emailEnabled;
 
     private final UserRepository userRepository;
 
@@ -23,6 +27,6 @@ public class CustomUserDetailsService implements UserDetailsService {
                         new UsernameNotFoundException(
                                 "User not found with email: " + email));
 
-        return new CustomUserDetails(user);
+        return new CustomUserDetails(user, emailEnabled);
     }
 }

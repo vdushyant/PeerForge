@@ -36,6 +36,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -63,6 +64,9 @@ public class AuthServiceImpl implements AuthService {
     private final JwtService jwtService;
     private final AuthMapper authMapper;
 
+    @Value("${peerforge.auth.email-enabled:false}")
+    private boolean emailEnabled;
+
     @Override
     @Transactional
     public MessageResponse register(RegisterRequest request) {
@@ -76,7 +80,7 @@ public class AuthServiceImpl implements AuthService {
         user.setPassword(passwordEncoder.encode(request.password()));
 
         user.setAccountStatus(AccountStatus.ACTIVE);
-        user.setEmailVerified(false);
+        user.setEmailVerified(!emailEnabled);
 
         Role clientRole = roleRepository
                 .findByName("CLIENT")
@@ -91,8 +95,11 @@ public class AuthServiceImpl implements AuthService {
         User savedUser = userRepository.save(user);
 
         userProfileService.createInitialProfile(savedUser);
-        sendVerification(savedUser);
-        return new MessageResponse("Check your email for a link to verify your PeerForge account.");
+        if (emailEnabled) {
+            sendVerification(savedUser);
+            return new MessageResponse("Check your email for a link to verify your PeerForge account.");
+        }
+        return new MessageResponse("Account created. You can sign in now.");
     }
 
     @Override
@@ -115,6 +122,9 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public MessageResponse resendVerification(String email) {
+        if (!emailEnabled) {
+            return new MessageResponse("Email verification is temporarily unavailable.");
+        }
         userRepository.findByEmail(email).filter(user -> !Boolean.TRUE.equals(user.getEmailVerified()))
                 .ifPresent(user -> {
                     try {
@@ -129,6 +139,9 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public MessageResponse requestPasswordReset(String email) {
+        if (!emailEnabled) {
+            return new MessageResponse("Password reset is temporarily unavailable. Please contact support for help.");
+        }
         userRepository.findByEmail(email)
                 .filter(user -> Boolean.TRUE.equals(user.getEmailVerified()))
                 .ifPresent(user -> {
@@ -253,7 +266,7 @@ public class AuthServiceImpl implements AuthService {
     private AuthenticationResponse createAuthenticationResponse(
             User user
     ) {
-        UserDetails userDetails = new CustomUserDetails(user);
+        UserDetails userDetails = new CustomUserDetails(user, emailEnabled);
 
         String accessToken =
                 jwtService.generateToken(userDetails);
