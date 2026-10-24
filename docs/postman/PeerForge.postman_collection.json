@@ -1,0 +1,156 @@
+{
+  "info": {
+    "_postman_id": "b4506d42-fac4-4142-9b76-9c75db5367ba",
+    "name": "PeerForge API",
+    "description": "PeerForge REST API requests for local development. Set baseUrl to the API root (default http://localhost:8080/api/v1). Login saves accessToken and refreshToken automatically. Do not store real credentials or tokens in this collection.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080/api/v1", "type": "string" },
+    { "key": "accessToken", "value": "", "type": "string" },
+    { "key": "refreshToken", "value": "", "type": "string" },
+    { "key": "mentorId", "value": "1", "type": "string" },
+    { "key": "sessionId", "value": "1", "type": "string" },
+    { "key": "availabilityId", "value": "1", "type": "string" },
+    { "key": "skillId", "value": "1", "type": "string" },
+    { "key": "reviewId", "value": "1", "type": "string" },
+    { "key": "userId", "value": "1", "type": "string" },
+    { "key": "mentorApplicationId", "value": "1", "type": "string" },
+    { "key": "email", "value": "", "type": "string" },
+    { "key": "password", "value": "", "type": "string" },
+    { "key": "passwordResetToken", "value": "", "type": "string" },
+    { "key": "notificationId", "value": "1", "type": "string" },
+    { "key": "razorpayOrderId", "value": "", "type": "string" },
+    { "key": "razorpayPaymentId", "value": "", "type": "string" },
+    { "key": "razorpaySignature", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"firstName\": \"Alex\",\n  \"lastName\": \"Learner\",\n  \"email\": \"alex@example.com\",\n  \"password\": \"ChangeMe123!\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{baseUrl}}/auth/register",
+            "description": "Use a new email address for each registration. Email verification is disabled by default in the current development configuration."
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Set email and password in a local Postman environment. Tokens are saved from the response for this collection."
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["if (pm.response.code >= 200 && pm.response.code < 300) {", "  const body = pm.response.json();", "  if (body.accessToken) pm.collectionVariables.set('accessToken', body.accessToken);", "  if (body.refreshToken) pm.collectionVariables.set('refreshToken', body.refreshToken);", "}"] } }]
+        },
+        {
+          "name": "Refresh access token",
+          "request": { "auth": { "type": "noauth" }, "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/auth/refresh" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["if (pm.response.code >= 200 && pm.response.code < 300) {", "  const body = pm.response.json();", "  if (body.accessToken) pm.collectionVariables.set('accessToken', body.accessToken);", "  if (body.refreshToken) pm.collectionVariables.set('refreshToken', body.refreshToken);", "}"] } }]
+        },
+        {
+          "name": "Logout",
+          "request": { "auth": { "type": "noauth" }, "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/auth/logout" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["if (pm.response.code === 204) {", "  pm.collectionVariables.unset('accessToken');", "  pm.collectionVariables.unset('refreshToken');", "}"] } }]
+        },
+        { "name": "Forgot password (email must be configured)", "request": { "auth": { "type": "noauth" }, "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/auth/forgot-password" } },
+        { "name": "Reset password (email must be configured)", "request": { "auth": { "type": "noauth" }, "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{passwordResetToken}}\",\n  \"newPassword\": \"ChangeMe123!\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/auth/reset-password" } }
+      ]
+    },
+    {
+      "name": "Public discovery",
+      "item": [
+        { "name": "Landing stats", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/public/landing-stats" } },
+        { "name": "Featured reviews", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/public/featured-reviews" } },
+        { "name": "List skills", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/skills" } },
+        { "name": "List approved mentors", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/mentors" } },
+        { "name": "Mentor details", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/mentors/{{mentorId}}" } },
+        { "name": "Mentor availability", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/mentors/{{mentorId}}/availability" } },
+        { "name": "Mentor reviews", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/mentors/{{mentorId}}/reviews" } }
+      ]
+    },
+    {
+      "name": "Profile and skills (authenticated)",
+      "item": [
+        { "name": "Get my profile", "request": { "method": "GET", "url": "{{baseUrl}}/profile/me" } },
+        { "name": "Update my profile", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"headline\": \"Software engineer learning distributed systems\",\n  \"bio\": \"A short introduction.\",\n  \"yearsOfExperience\": 2,\n  \"githubUrl\": \"https://github.com/example\",\n  \"linkedinUrl\": \"https://linkedin.com/in/example\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/profile/me" } },
+        { "name": "Add skill to my profile", "request": { "method": "POST", "url": "{{baseUrl}}/profile/skills/{{skillId}}" } },
+        { "name": "Remove skill from my profile", "request": { "method": "DELETE", "url": "{{baseUrl}}/profile/skills/{{skillId}}" } }
+      ]
+    },
+    {
+      "name": "Mentor (authenticated)",
+      "item": [
+        { "name": "Apply to become a mentor", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"about\": \"I enjoy helping developers grow their backend engineering skills.\",\n  \"hourlyRate\": 1000\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/mentors/apply" } },
+        { "name": "Get my mentor profile", "request": { "method": "GET", "url": "{{baseUrl}}/mentors/me" } },
+        { "name": "Add availability", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"dayOfWeek\": \"MONDAY\",\n  \"startTime\": \"18:00\",\n  \"endTime\": \"20:00\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/mentors/availability" } },
+        { "name": "Get my availability", "request": { "method": "GET", "url": "{{baseUrl}}/mentors/availability" } },
+        { "name": "Delete availability slot", "request": { "method": "DELETE", "url": "{{baseUrl}}/mentors/availability/{{availabilityId}}" } }
+      ]
+    },
+    {
+      "name": "Sessions and chat (authenticated)",
+      "item": [
+        { "name": "Book a session", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"mentorId\": {{mentorId}},\n  \"startDateTime\": \"2026-11-02T18:00:00\",\n  \"endDateTime\": \"2026-11-02T19:00:00\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/sessions" } },
+        { "name": "List my sessions", "request": { "method": "GET", "url": "{{baseUrl}}/sessions/me" } },
+        { "name": "List sessions for my mentor account", "request": { "method": "GET", "url": "{{baseUrl}}/sessions/mentor" } },
+        { "name": "Get session", "request": { "method": "GET", "url": "{{baseUrl}}/sessions/{{sessionId}}" } },
+        { "name": "Confirm session (mentor)", "request": { "method": "PATCH", "url": "{{baseUrl}}/sessions/{{sessionId}}/confirm" } },
+        { "name": "Cancel session", "request": { "method": "PATCH", "url": "{{baseUrl}}/sessions/{{sessionId}}/cancel" } },
+        { "name": "Mark session complete", "request": { "method": "PATCH", "url": "{{baseUrl}}/sessions/{{sessionId}}/complete" } },
+        { "name": "List session messages", "request": { "method": "GET", "url": "{{baseUrl}}/sessions/{{sessionId}}/messages" } },
+        { "name": "Send session message", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"message\": \"Hi, looking forward to our session.\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/sessions/{{sessionId}}/messages" } },
+        { "name": "Set meeting link (HTTPS required)", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"meetingLink\": \"https://meet.example.com/room\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/sessions/{{sessionId}}/meeting-link" } }
+      ]
+    },
+    {
+      "name": "Reviews (authenticated)",
+      "item": [
+        { "name": "Check review eligibility", "request": { "method": "GET", "url": "{{baseUrl}}/sessions/{{sessionId}}/review" } },
+        { "name": "Submit review for completed session", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"rating\": 5,\n  \"comment\": \"Clear, practical, and helpful session.\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/sessions/{{sessionId}}/reviews" } }
+      ]
+    },
+    {
+      "name": "Notifications (authenticated)",
+      "item": [
+        { "name": "Get notification inbox", "request": { "method": "GET", "url": "{{baseUrl}}/notifications" } },
+        { "name": "Mark notification read", "request": { "method": "PATCH", "url": "{{baseUrl}}/notifications/{{notificationId}}/read" } },
+        { "name": "Mark all notifications read", "request": { "method": "PATCH", "url": "{{baseUrl}}/notifications/read-all" } }
+      ]
+    },
+    {
+      "name": "Payments (test credentials only)",
+      "description": "Create a Razorpay UPI QR for a booked session, pay it using Razorpay test mode, and inspect status. Payment confirmation is processed through the configured Razorpay webhook. This collection does not simulate payment or forge webhook events. Mentor transfers are not implemented.",
+      "item": [
+        { "name": "Create payment QR for session", "request": { "method": "POST", "url": "{{baseUrl}}/payments/orders/session/{{sessionId}}", "description": "Response includes razorpayQrCodeImageUrl and razorpayQrCodeExpiresAt. Scan/pay using the configured test method, then rely on the Razorpay webhook to update status." } },
+        { "name": "Verify checkout payment (when using Checkout flow)", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"razorpayOrderId\": \"{{razorpayOrderId}}\",\n  \"razorpayPaymentId\": \"{{razorpayPaymentId}}\",\n  \"razorpaySignature\": \"{{razorpaySignature}}\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/payments/orders/verify" } },
+        { "name": "Get session payment status", "request": { "method": "GET", "url": "{{baseUrl}}/payments/orders/session/{{sessionId}}/status" } }
+      ]
+    },
+    {
+      "name": "Administrator (ADMIN role required)",
+      "item": [
+        { "name": "List users", "request": { "method": "GET", "url": "{{baseUrl}}/admin/users" } },
+        { "name": "List sessions", "request": { "method": "GET", "url": "{{baseUrl}}/admin/sessions" } },
+        { "name": "List mentor applications (default: pending)", "request": { "method": "GET", "url": "{{baseUrl}}/admin/mentors?status=PENDING&page=0&size=20" } },
+        { "name": "Approve mentor application", "request": { "method": "PATCH", "url": "{{baseUrl}}/admin/mentors/{{mentorApplicationId}}/approve" } },
+        { "name": "Reject mentor application", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Please provide more relevant mentoring experience.\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/admin/mentors/{{mentorApplicationId}}/reject" } },
+        { "name": "List reviews for moderation (default: pending)", "request": { "method": "GET", "url": "{{baseUrl}}/admin/reviews?status=PENDING" } },
+        { "name": "Approve review", "request": { "method": "PATCH", "url": "{{baseUrl}}/admin/reviews/{{reviewId}}/approve" } },
+        { "name": "Reject review", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Please remove personal information from the review.\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/admin/reviews/{{reviewId}}/reject" } }
+      ]
+    }
+  ]
+}

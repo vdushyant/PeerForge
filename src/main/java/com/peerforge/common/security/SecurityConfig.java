@@ -127,7 +127,8 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(
                 List.of(
                         "http://localhost:5173",
-                        "https://d1mxko2b62xlbg.cloudfront.net"
+                        "https://d1mxko2b62xlbg.cloudfront.net",
+                        "https://peerforge.dushhyant.in"
                 )
         );
 
